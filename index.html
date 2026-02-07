@@ -1,0 +1,589 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>إدارة التصنيع – شركة سرت</title>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
+
+  <style>
+    :root {
+      --bg: #001a3d;
+      --card-bg: rgba(10, 44, 90, 0.55);
+      --card-border: rgba(255,255,255,0.12);
+      --text: #f0f4ff;
+      --text-light: #c3d4ff;
+      --accent: #00aeff;
+      --shadow: 0 8px 32px rgba(0,0,0,0.4);
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      font-family: 'Cairo', system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 16px 12px;
+      line-height: 1.5;
+    }
+
+    header {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 12px;
+      margin-bottom: 16px;
+      text-align: center;
+    }
+
+    header img { height: 56px; }
+
+    header div { font-size: 1.35rem; font-weight: 600; }
+
+    .actions-bar {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      justify-content: center;
+      margin: 0 auto 16px;
+    }
+
+    .export-btn {
+      background: #00aeff;
+      color: #001a3d;
+      border: none;
+      padding: 10px 22px;
+      border-radius: 10px;
+      font-weight: 600;
+      cursor: pointer;
+      box-shadow: 0 4px 15px rgba(0,174,255,0.3);
+      transition: all 0.22s;
+    }
+
+    .export-btn:hover { background: #0095e0; transform: translateY(-2px); }
+
+    .export-btn.pdf { background: #e74c3c; box-shadow: 0 4px 15px rgba(231,76,60,0.3); }
+    .export-btn.pdf:hover { background: #c0392b; }
+
+    .search-container {
+      margin: 0 auto 16px;
+      max-width: 500px;
+      position: sticky;
+      top: 8px;
+      z-index: 10;
+      background: rgba(0,26,61,0.9);
+      backdrop-filter: blur(10px);
+      padding: 10px;
+      border-radius: 12px;
+      border: 1px solid var(--card-border);
+    }
+
+    #searchInput {
+      width: 100%;
+      padding: 12px 16px;
+      border-radius: 10px;
+      border: 1px solid #00aeff55;
+      background: rgba(255,255,255,0.08);
+      color: white;
+      font-size: 1rem;
+    }
+
+    #searchInput::placeholder { color: #a0c0ff; }
+
+    .tabs {
+      display: flex;
+      gap: 10px;
+      overflow-x: auto;
+      padding-bottom: 8px;
+      margin-bottom: 16px;
+      justify-content: center;
+      flex-wrap: wrap;
+    }
+
+    .tab {
+      padding: 10px 18px;
+      border-radius: 999px;
+      background: rgba(255,255,255,0.07);
+      backdrop-filter: blur(10px);
+      border: 1px solid var(--card-border);
+      cursor: pointer;
+      white-space: nowrap;
+      font-weight: 500;
+      transition: all 0.22s;
+    }
+
+    .tab:hover { background: rgba(255,255,255,0.15); }
+
+    .tab.active {
+      background: var(--accent);
+      color: #001a3d;
+      font-weight: 700;
+    }
+
+    .tab.all-tab {
+      background: linear-gradient(135deg, #2c3e50, #34495e);
+    }
+
+    .dashboard {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+      gap: 14px;
+      margin-bottom: 20px;
+    }
+
+    .stat {
+      background: var(--card-bg);
+      backdrop-filter: blur(12px);
+      border: 1px solid var(--card-border);
+      border-radius: 18px;
+      padding: 16px 12px;
+      text-align: center;
+      box-shadow: var(--shadow);
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .stat:hover { transform: translateY(-5px); box-shadow: 0 12px 40px rgba(0,174,255,0.2); }
+
+    .stat .num { font-size: 2.2rem; font-weight: 700; }
+    .stat .lbl { font-size: 0.95rem; display: flex; align-items: center; justify-content: center; gap: 8px; }
+
+    .status-dot { width: 12px; height: 12px; border-radius: 50%; }
+
+    .cards { display: flex; flex-direction: column; gap: 14px; }
+
+    .card {
+      background: var(--card-bg);
+      backdrop-filter: blur(12px);
+      border: 1px solid var(--card-border);
+      border-radius: 18px;
+      padding: 18px 16px;
+      box-shadow: var(--shadow);
+      transition: transform 0.2s;
+    }
+
+    .card:hover { transform: translateY(-4px); }
+
+    .card .name { font-size: 1.18rem; font-weight: 600; margin-bottom: 10px; }
+
+    .card .row {
+      font-size: 0.96rem;
+      color: var(--text-light);
+      margin: 6px 0;
+      display: flex;
+      gap: 10px;
+    }
+
+    .card .row strong { color: #b0d0ff; min-width: 130px; }
+
+    @media (max-width: 480px) {
+      .dashboard { grid-template-columns: repeat(auto-fill, minmax(135px, 1fr)); }
+      .search-container { top: 0; margin: -16px -12px 16px; border-radius: 0; }
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <img src="https://sirteoil-my.sharepoint.com/:i:/g/personal/a_abdulmola_sirteoil_com_ly/IQBH-QsAPWAcTqyDSgtXEchOATowuy1SAssoHr7hUS-wgs8?download=1" alt="شعار">
+  <div>إدارة التصنيع – شركة سرت</div>
+</header>
+
+<div class="actions-bar">
+  <button id="exportCsvBtn" class="export-btn">تصدير CSV</button>
+  <button id="exportPdfBtn" class="export-btn pdf">تصدير PDF</button>
+</div>
+
+<div class="search-container">
+  <input type="text" id="searchInput" placeholder="ابحث بالاسم أو رقم التوظيف...">
+</div>
+
+<div id="tabs" class="tabs"></div>
+
+<div id="content"></div>
+
+<script>
+const { jsPDF } = window.jspdf;
+
+const rawData = [{"EmployeeID":"12220","Name":"مروان محمد حسن","Depatment":"معمل الغاز","Code":"A","Since":"45781","To":"45996","TravelDate":null,"Duration":null,"Remarks":"اجازة بدون مرتب (في انتظار صدور القرار)","SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"12610","Name":"عبدالرحمن فتحى الصادق","Depatment":"معمل الغاز","Code":"A","Since":"45965","To":"مستمر","TravelDate":null,"Duration":null,"Remarks":"اجازة بدون مرتب (في انتظار صدور القرار)","SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"16272","Name":"محمد سعيد امحمد خليفه","Depatment":"معمل الغاز","Code":"B","Since":"44624","To":"مستمر","TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"19639","Name":"اسامه يوسف عبدالله فنير","Depatment":"معمل الغاز","Code":"B","Since":"44841","To":"مستمر","TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"12217","Name":"احمد فرج السنوسى الأوجلى","Depatment":"معمل الغاز","Code":"K","Since":null,"To":null,"TravelDate":"2025-08-31T22:00:00Z","Duration":"26أسبوع","Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"12225","Name":"عصام صبحى العجيلى","Depatment":"معمل الغاز","Code":"K","Since":null,"To":null,"TravelDate":"2025-09-06T22:00:00Z","Duration":"26أسبوع","Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"12452","Name":"يحى محمد مفتاح المسمارى","Depatment":"معمل الغاز","Code":"K","Since":null,"To":null,"TravelDate":"2025-08-26T22:00:00Z","Duration":"26أسبوع","Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"12692","Name":"على خليفة امبارك العكروت","Depatment":"معمل الغاز","Code":"K","Since":null,"To":null,"TravelDate":"2025-10-13T22:00:00Z","Duration":"26أسبوع","Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"12978","Name":"امحمد ابوحسينة خليفة التريكي","Depatment":"معمل الغاز","Code":"K","Since":null,"To":null,"TravelDate":"2025-08-26T22:00:00Z","Duration":"26أسبوع","Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"13412","Name":"امقاوي ابريك ابوبكر صالح","Depatment":"معمل الغاز","Code":"K","Since":null,"To":null,"TravelDate":"2025-08-31T22:00:00Z","Duration":"26أسبوع","Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"13506","Name":"احمد علي احمد عاشور","Depatment":"معمل الغاز","Code":"K","Since":null,"To":null,"TravelDate":"2025-10-13T22:00:00Z","Duration":"26أسبوع","Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"14046","Name":"وسام فرج يونس عبدالله","Depatment":"معمل الغاز","Code":"K","Since":null,"To":null,"TravelDate":"2025-12-16T22:00:00Z","Duration":"26أسبوع","Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"4759","Name":"محمد مصباح الكريكشى","Depatment":"معمل الغاز","Code":"P","Since":"45108","To":"مستمر","TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"13188","Name":"حسن إبراهيم حسن","Depatment":"معمل الغاز","Code":"P","Since":"45017","To":"مستمر","TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"16592","Name":"محمد عبدالحفيظ محمد عليان","Depatment":"معمل الغاز","Code":"P","Since":"45674","To":"مستمر","TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"12445","Name":"فوزي صالح محمد الكيلاني","Depatment":"معمل الغاز","Code":"P","Since":"2026/0113","To":"46113","TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"19381","Name":"محمد بوعجيلة ميلاد خليفة","Depatment":"معمل الغاز","Code":"فى إدارة الصيانة","Since":null,"To":null,"TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"11324","Name":"عبدالفتاح عبدالرحمن السنوسى","Depatment":"معمل الغاز","Code":"منتدب","Since":"45762","To":"46126","TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":"إدارة الإنتاج","Retirementdate":null},{"EmployeeID":"5557","Name":"عبدالفتاح سعد عبدالقادر","Depatment":"معمل الغاز","Code":"متواجد (متفرغ للجنة الخردة)","Since":"44136","To":"مستمر","TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":"لجنة الخردة","Retirementdate":null},{"EmployeeID":"5568","Name":"عبدالرحيم عبدالله مفتاح","Depatment":"معمل الغاز","Code":"متواجد في العمل","Since":null,"To":null,"TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"1390","Name":"خيرى المبروك الترهونى","Depatment":"معمل الغاز","Code":"متواجد في العمل","Since":null,"To":null,"TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"1395","Name":"ادريس اقبيلى ارخيص","Depatment":"معمل الغاز","Code":"متواجد في العمل","Since":null,"To":null,"TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"1928","Name":"عبدالمنعم أدم الهمالى","Depatment":"معمل الغاز","Code":"متواجد في العمل","Since":null,"To":null,"TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"2362","Name":"اكريم عوض الحبونى","Depatment":"معمل الغاز","Code":"متواجد في العمل","Since":null,"To":null,"TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"2950","Name":"عقيلة عبدالهادى زايد","Depatment":"معمل الغاز","Code":"متواجد في العمل","Since":null,"To":null,"TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"2988","Name":"عبدالرحمن مسعود الغاتى","Depatment":"معمل الغاز","Code":"متواجد في العمل","Since":null,"To":null,"TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"4732","Name":"فرج سالم عبدالنبى","Depatment":"معمل الغاز","Code":"متواجد في العمل","Since":null,"To":null,"TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"4761","Name":"عبدالكريم مصباح صالح","Depatment":"معمل الغاز","Code":"متواجد في العمل","Since":null,"To":null,"TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"5062","Name":"عبدالعاطى حسن عبدالسلام","Depatment":"معمل الغاز","Code":"متواجد في العمل","Since":null,"To":null,"TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"5479","Name":"يوسف عبدالسيد عبدالقادر","Depatment":"معمل الغاز","Code":"متواجد في العمل","Since":null,"To":null,"TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"5522","Name":"عبداللطيف بوبكر عبدالهادى","Depatment":"معمل الغاز","Code":"متواجد في العمل","Since":null,"To":null,"TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"5556","Name":"فرج عبدالقادر مفتاح","Depatment":"معمل الغاز","Code":"متواجد في العمل","Since":null,"To":null,"TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"8061","Name":"عادل احتيوش سالم","Depatment":"معمل الغاز","Code":"متواجد في العمل","Since":null,"To":null,"TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"10524","Name":"عبدالمنعم سعيد سلطان","Depatment":"معمل الغاز","Code":"متواجد في العمل","Since":null,"To":null,"TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"10525","Name":"جمال ابوبكر على ","Depatment":"معمل الغاز","Code":"متواجد في العمل","Since":null,"To":null,"TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"10576","Name":"خالد رمضان البكوش","Depatment":"معمل الغاز","Code":"متواجد في العمل","Since":null,"To":null,"TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"11220","Name":"عبدالرحمن مرعى فرج","Depatment":"معمل الغاز","Code":"متواجد في العمل","Since":null,"To":null,"TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"11221","Name":"جبريل سعد حسين","Depatment":"معمل الغاز","Code":"متواجد في العمل","Since":null,"To":null,"TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"11223","Name":"محمد بالقاسم عبدالله","Depatment":"معمل الغاز","Code":"متواجد في العمل","Since":null,"To":null,"TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"11224","Name":"خالد سلطان يحى","Depatment":"معمل الغاز","Code":"متواجد في العمل","Since":null,"To":null,"TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"11241","Name":"طلال سعد عبدالسلام","Depatment":"معمل الغاز","Code":"متواجد في العمل","Since":null,"To":null,"TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"11325","Name":"عبدالقادر امحمد على","Depatment":"معمل الغاز","Code":"متواجد في العمل","Since":null,"To":null,"TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"11326","Name":"فيصل محمد ابراهيم","Depatment":"معمل الغاز","Code":"متواجد في العمل","Since":null,"To":null,"TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"11327","Name":"يوسف حسن مصباح","Depatment":"معمل الغاز","Code":"متواجد في العمل","Since":null,"To":null,"TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"11328","Name":"عبدالعظيم عبدالرازق عمر","Depatment":"معمل الغاز","Code":"متواجد في العمل","Since":null,"To":null,"TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"11329","Name":"عبدالله محمد عبدالله الجالي","Depatment":"معمل الغاز","Code":"متواجد في العمل","Since":null,"To":null,"TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"11417","Name":"شرف الدين محمد العربى","Depatment":"معمل الغاز","Code":"متواجد في العمل","Since":null,"To":null,"TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"11424","Name":"رمضان عمار عمران","Depatment":"معمل الغاز","Code":"متواجد في العمل","Since":null,"To":null,"TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"11426","Name":"يوسف محمد الدهيدية","Depatment":"معمل الغاز","Code":"متواجد في العمل","Since":null,"To":null,"TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"12214","Name":"سليمان اللأفى امغيب","Depatment":"معمل الغاز","Code":"متواجد في العمل","Since":null,"To":null,"TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"12215","Name":"انور عبدالكريم فرج","Depatment":"معمل الغاز","Code":"متواجد في العمل","Since":null,"To":null,"TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"12218","Name":"عمر محمد أرحيم","Depatment":"معمل الغاز","Code":"متواجد في العمل","Since":null,"To":null,"TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"12219","Name":"عبدالحكيم رافع العرفى","Depatment":"معمل الغاز","Code":"متواجد في العمل","Since":null,"To":null,"TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"12231","Name":"عيسى سيدى آدم يكونى","Depatment":"معمل الغاز","Code":"متواجد في العمل","Since":null,"To":null,"TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"12232","Name":"عبدالحكيم خليفة عبدالسلام","Depatment":"معمل الغاز","Code":"متواجد في العمل","Since":null,"To":null,"TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"12364","Name":"حمد يوسف عثمان","Depatment":"معمل الغاز","Code":"متواجد في العمل","Since":null,"To":null,"TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"12650","Name":"مفتاح على مفتاح على","Depatment":"معمل الغاز","Code":"متواجد في العمل","Since":null,"To":null,"TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"12686","Name":"أشرف ميلاد على الهتش","Depatment":"معمل الغاز","Code":"متواجد في العمل","Since":null,"To":null,"TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"12731","Name":"احمد رمضان الشاوش","Depatment":"معمل الغاز","Code":"متواجد في العمل","Since":null,"To":null,"TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"12824","Name":"حمزة البشير صالح القماطى","Depatment":"معمل الغاز","Code":"متواجد في العمل","Since":null,"To":null,"TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"13136","Name":"محمد خليفة محمد الشريف","Depatment":"معمل الغاز","Code":"متواجد في العمل","Since":null,"To":null,"TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"13195","Name":"احمد علي عبدالسلام اعبيدة","Depatment":"معمل الغاز","Code":"متواجد في العمل","Since":null,"To":null,"TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"13302","Name":"عصام عبداللطيف الزروالي","Depatment":"معمل الغاز","Code":"متواجد في العمل","Since":null,"To":null,"TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"13304","Name":"عبدالروؤف علي صالح القروي","Depatment":"معمل الغاز","Code":"متواجد في العمل","Since":null,"To":null,"TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"13315","Name":"عمر عبدالقادر حدوث البرعصي","Depatment":"معمل الغاز","Code":"متواجد في العمل","Since":null,"To":null,"TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"13589","Name":"عبدالرحمن ابشينة عطية","Depatment":"معمل الغاز","Code":"متواجد في العمل","Since":null,"To":null,"TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"14616","Name":"أحمد فتحي أحمد بوالصادق","Depatment":"معمل الغاز","Code":"متواجد في العمل","Since":null,"To":null,"TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"14650","Name":"مصطفى امعزب سعيد سليمان","Depatment":"معمل الغاز","Code":"متواجد في العمل","Since":null,"To":null,"TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"14666","Name":"المعتصم بالله آدم هنداوي","Depatment":"معمل الغاز","Code":"متواجد في العمل","Since":null,"To":null,"TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"14668","Name":"غانم عبد السلام أحمد بديوي","Depatment":"معمل الغاز","Code":"متواجد في العمل","Since":null,"To":null,"TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"14671","Name":"ابراهيم محمد مفتاح ساسي","Depatment":"معمل الغاز","Code":"متواجد في العمل","Since":null,"To":null,"TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"14900","Name":"ايمن ابراهيم المبروك الحمري","Depatment":"معمل الغاز","Code":"متواجد في العمل","Since":null,"To":null,"TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"14907","Name":"محمد حمد على عامر","Depatment":"معمل الغاز","Code":"متواجد في العمل","Since":null,"To":null,"TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"15291","Name":"عبدالله صالح العنابي","Depatment":"معمل الغاز","Code":"متواجد في العمل","Since":null,"To":null,"TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"15509","Name":"سالم بشير سالم الشامخ","Depatment":"معمل الغاز","Code":"متواجد في العمل","Since":null,"To":null,"TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"15549","Name":"حسين على حفالش عبدالله","Depatment":"معمل الغاز","Code":"متواجد في العمل","Since":null,"To":null,"TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"15558","Name":"حمد فرج حمد","Depatment":"معمل الغاز","Code":"متواجد في العمل","Since":null,"To":null,"TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"15753","Name":"يوسف على يوسف عمر","Depatment":"معمل الغاز","Code":"متواجد في العمل","Since":null,"To":null,"TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"15773","Name":"منصور عبد السلام مصطفى","Depatment":"معمل الغاز","Code":"متواجد في العمل","Since":null,"To":null,"TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"15987","Name":"محمد فرج بوحليقة","Depatment":"معمل الغاز","Code":"متواجد في العمل","Since":null,"To":null,"TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"16195","Name":"علاء الدين محمد سالم","Depatment":"معمل الغاز","Code":"متواجد في العمل","Since":null,"To":null,"TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"16266","Name":"امحمد محمد امحمد النمصي","Depatment":"معمل الغاز","Code":"متواجد في العمل","Since":null,"To":null,"TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"16275","Name":"عبد المهيمن ابراهيم سركز","Depatment":"معمل الغاز","Code":"متواجد في العمل","Since":null,"To":null,"TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"16370","Name":"عبدالعالي عبدالرسول حسين","Depatment":"معمل الغاز","Code":"متواجد في العمل","Since":null,"To":null,"TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"16593","Name":"عيسى صالح سليمان أغنيوة","Depatment":"معمل الغاز","Code":"متواجد في العمل","Since":null,"To":null,"TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"16611","Name":"فوزي ادم على عبد الكريم","Depatment":"معمل الغاز","Code":"متواجد في العمل","Since":null,"To":null,"TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"16612","Name":"يوسف امحمد خليفه","Depatment":"معمل الغاز","Code":"متواجد في العمل","Since":null,"To":null,"TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"16613","Name":"إدريس سلطان إدريس","Depatment":"معمل الغاز","Code":"متواجد في العمل","Since":null,"To":null,"TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"16615","Name":"حسين على احميده","Depatment":"معمل الغاز","Code":"متواجد في العمل","Since":null,"To":null,"TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"16617","Name":"صالح أحمد عقيلة","Depatment":"معمل الغاز","Code":"متواجد في العمل","Since":null,"To":null,"TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"16619","Name":"غيث مازق غيث مازق","Depatment":"معمل الغاز","Code":"متواجد في العمل","Since":null,"To":null,"TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"16620","Name":"مختار مصباح مختار","Depatment":"معمل الغاز","Code":"متواجد في العمل","Since":null,"To":null,"TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"16651","Name":"صالح على يوسف عمر","Depatment":"معمل الغاز","Code":"متواجد في العمل","Since":null,"To":null,"TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"16840","Name":"مهيوس فرج مهيوس فرج","Depatment":"معمل الغاز","Code":"متواجد في العمل","Since":null,"To":null,"TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"17121","Name":"محمد بشير سالم الشامخ","Depatment":"معمل الغاز","Code":"متواجد في العمل","Since":null,"To":null,"TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"17195","Name":"بوبكر محمد يونس ","Depatment":"معمل الغاز","Code":"متواجد في العمل","Since":null,"To":null,"TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"17873","Name":"عبدالمالك عبدالسلام صالح","Depatment":"معمل الغاز","Code":"متواجد في العمل","Since":null,"To":null,"TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"17877","Name":"على عوض المنفور","Depatment":"معمل الغاز","Code":"متواجد في العمل","Since":null,"To":null,"TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"18243","Name":"سليمان فرج سليمان","Depatment":"معمل الغاز","Code":"متواجد في العمل","Since":null,"To":null,"TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"18245","Name":"مصطفى ابوالقاسم عمر","Depatment":"معمل الغاز","Code":"متواجد في العمل","Since":null,"To":null,"TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"18286","Name":"خالد عبدالسلام المصري","Depatment":"معمل الغاز","Code":"متواجد في العمل","Since":null,"To":null,"TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"18451","Name":"هانى حسين صالح ابوبكر","Depatment":"معمل الغاز","Code":"متواجد في العمل","Since":null,"To":null,"TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"18479","Name":"علي عبدالقادر حمد ","Depatment":"معمل الغاز","Code":"متواجد في العمل","Since":null,"To":null,"TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"18891","Name":"طه أحمد عبدالسلام بن طاهر","Depatment":"معمل الغاز","Code":"متواجد في العمل","Since":null,"To":null,"TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"18948","Name":"المهدي سالم المهدي القزاني","Depatment":"معمل الغاز","Code":"متواجد في العمل","Since":null,"To":null,"TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"18950","Name":"بشير على بشير حسين","Depatment":"معمل الغاز","Code":"متواجد في العمل","Since":null,"To":null,"TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"19654","Name":"معمر مفتاح اعتيقة حديد","Depatment":"معمل الغاز","Code":"متواجد في العمل","Since":null,"To":null,"TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"19683","Name":"محمد اذياب علي بودزه","Depatment":"معمل الغاز","Code":"متواجد في العمل","Since":null,"To":null,"TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"19684","Name":"ايوب عمر عبدالسلام لوجلي","Depatment":"معمل الغاز","Code":"متواجد في العمل","Since":null,"To":null,"TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"19988","Name":"فيصل صالح العنابي","Depatment":"معمل الغاز","Code":"متواجد في العمل","Since":null,"To":null,"TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"20334","Name":"مراد رمضان عبدالسلام","Depatment":"معمل الغاز","Code":"متواجد في العمل","Since":null,"To":null,"TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"20338","Name":"محمد خميس كوري بوبكر","Depatment":"معمل الغاز","Code":"متواجد في العمل","Since":null,"To":null,"TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"20341","Name":"محمد سالم ضو","Depatment":"معمل الغاز","Code":"متواجد في العمل","Since":null,"To":null,"TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"20403","Name":"عبدالسلام اجويلي عبدالعزيز","Depatment":"معمل الغاز","Code":"متواجد في العمل","Since":null,"To":null,"TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"20726","Name":"طاهر فرج طاهر","Depatment":"معمل الغاز","Code":"متواجد في العمل","Since":null,"To":null,"TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"20736","Name":"عبدالوهاب ناجي بوبكر","Depatment":"معمل الغاز","Code":"متواجد في العمل","Since":null,"To":null,"TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"20750","Name":"سليم محمد الاشخم","Depatment":"معمل الغاز","Code":"متواجد في العمل","Since":null,"To":null,"TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"20780","Name":"بوبكر سعد مصباح خليفة","Depatment":"معمل الغاز","Code":"متواجد في العمل","Since":null,"To":null,"TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"21014","Name":"أنس التهامي مولود الشيباني ","Depatment":"معمل الغاز","Code":"متواجد في العمل","Since":null,"To":null,"TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"22118","Name":"أحمد صالح مختار قادير","Depatment":"معمل الغاز","Code":"متواجد في العمل","Since":null,"To":null,"TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"22701","Name":"عزالدين سليمان جمعة الشريف","Depatment":"معمل الغاز","Code":"منقول","Since":"2026/01/01","To":null,"TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"22783","Name":"مسعود عبدالسلام مسعود","Depatment":"معمل الغاز","Code":"متواجد في العمل","Since":null,"To":null,"TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"22822","Name":"علي محمد علي","Depatment":"معمل الغاز","Code":"متواجد في العمل","Since":null,"To":null,"TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"22842","Name":"محمد فرج المرضي","Depatment":"معمل الغاز","Code":"متواجد في العمل","Since":null,"To":null,"TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"22844","Name":"موسى محمد عبدالكريم","Depatment":"معمل الغاز","Code":"متواجد في العمل","Since":null,"To":null,"TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"22853","Name":"عبدالله المجدوب رجب","Depatment":"معمل الغاز","Code":"متواجد في العمل","Since":null,"To":null,"TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"22876","Name":"محمد بوصلاح مختار","Depatment":"معمل الغاز","Code":"متواجد في العمل","Since":null,"To":null,"TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"22878","Name":"صالح محمود محمد","Depatment":"معمل الغاز","Code":"متواجد في العمل","Since":null,"To":null,"TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"22943","Name":"عبدالحميد حسن عبدالحميد","Depatment":"معمل الغاز","Code":"متواجد في العمل","Since":null,"To":null,"TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"22967","Name":"موسى سعد عبدالهادي","Depatment":"معمل الغاز","Code":"متواجد في العمل","Since":null,"To":null,"TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"23022","Name":"محمود امحمد محمود","Depatment":"معمل الغاز","Code":"منقول","Since":"2026/01/28","To":null,"TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"23105","Name":"حمزة جادالله جبريل علي","Depatment":"معمل الغاز","Code":"متواجد في العمل","Since":null,"To":null,"TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"23106","Name":"ايمن عبدالباسط احبيل علي","Depatment":"معمل الغاز","Code":"متواجد في العمل","Since":null,"To":null,"TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"23115","Name":"عزالدين ابراهيم محمد بوفروة","Depatment":"معمل الغاز","Code":"متواجد في العمل","Since":null,"To":null,"TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"23120","Name":"سليمان المهدي سليمان سليمان","Depatment":"معمل الغاز","Code":"متواجد في العمل","Since":null,"To":null,"TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"23151","Name":"سعيد اشتيوي محمد حسين","Depatment":"معمل الغاز","Code":"متواجد في العمل","Since":null,"To":null,"TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"23159","Name":"محمد عبدالقادر عبدالكريم صالح","Depatment":"معمل الغاز","Code":"متواجد في العمل","Since":null,"To":null,"TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"23274","Name":"احمد القذافي صالح صالح","Depatment":"معمل الغاز","Code":"متواجد في العمل","Since":null,"To":null,"TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"13726","Name":"ارحومة نوري ارحومة عمر","Depatment":"الميثانول","Code":"B","Since":"43291","To":"مستمر","TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"21971","Name":"MD SAEED HASAN","Depatment":"الميثانول","Code":"B","Since":"45794","To":"مستمر","TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"20018","Name":"Rahul Ravisshaker","Depatment":"الميثانول","Code":"B","Since":"45933","To":"مستمر","TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"15949","Name":"علي يونس علي محمد","Depatment":"الميثانول","Code":"F","Since":"44584","To":"مستمر","TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"12396","Name":"عادل عبدالنبي رمضان الشاوش","Depatment":"الميثانول","Code":"P","Since":"45339","To":"مستمر","TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"16157","Name":"مصطفى محمد عبدالعالي بشير","Depatment":"الميثانول","Code":"P","Since":"45249","To":"مستمر","TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"19704","Name":"رمضان عمرو رمضان ناجعة","Depatment":"الميثانول","Code":"P","Since":"45097","To":"مستمر","TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"18944","Name":"اسماعيل حامد علي جحا","Depatment":"الميثانول","Code":"P","Since":"45202","To":"مستمر","TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"14915","Name":"صلاح جمعة صالح  فرج","Depatment":"الميثانول","Code":"P","Since":"45231","To":"مستمر","TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"22167","Name":"أحمد المبروك عمر امطير","Depatment":"الميثانول","Code":"P","Since":"45690","To":"مستمر","TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"22481","Name":"ميسرة طارق صبري دوزان","Depatment":"الميثانول","Code":"P","Since":"45767","To":"مستمر","TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"23047","Name":"ايوب سليمان المبروك ","Depatment":"الميثانول","Code":"منقول","Since":"2026/01/01","To":null,"TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"12386","Name":"صلاح الدين خليفة احمد","Depatment":"الميثانول","Code":"K","Since":null,"To":null,"TravelDate":"2025-08-29T22:00:00Z","Duration":"26أسبوع","Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"12393","Name":"اسامه الهادي مصباح","Depatment":"الميثانول","Code":"K","Since":null,"To":null,"TravelDate":"2025-08-29T22:00:00Z","Duration":"26أسبوع","Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"12491","Name":"فرج عثمان عبدالفضيل السنوسي","Depatment":"الميثانول","Code":"K","Since":null,"To":null,"TravelDate":"2025-08-29T22:00:00Z","Duration":"26أسبوع","Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"12544","Name":"سامي علي مسعود العومري","Depatment":"الميثانول","Code":"K","Since":null,"To":null,"TravelDate":"2025-08-29T22:00:00Z","Duration":"26أسبوع","Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"12586","Name":"فتحي ابراهيم سعيد علي","Depatment":"الميثانول","Code":"K","Since":null,"To":null,"TravelDate":"2025-08-29T22:00:00Z","Duration":"26أسبوع","Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"12970","Name":"فتحي معمر خليفة ابراهيم","Depatment":"الميثانول","Code":"K","Since":null,"To":null,"TravelDate":"2025-08-29T22:00:00Z","Duration":"26أسبوع","Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"13147","Name":"الساعدي  صالح احمد اوداعة","Depatment":"الميثانول","Code":"K","Since":null,"To":null,"TravelDate":"2025-09-27T22:00:00Z","Duration":"26أسبوع","Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"14925","Name":"محمد فرج ادريس شويقي","Depatment":"الميثانول","Code":"منتدب","Since":"45292","To":"مستمر","TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":"إدارة الإنتاج","Retirementdate":null},{"EmployeeID":"19699","Name":"على عبدالسلام زيدان عبدالرحمن","Depatment":"الميثانول","Code":"منتدب","Since":"45882","To":"46246","TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":"المؤسسة الوطنية للنفط","Retirementdate":null},{"EmployeeID":"586","Name":"محمد ابراهيم جابر","Depatment":"الميثانول","Code":"متواجد في العمل","Since":null,"To":null,"TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"1216","Name":"علي  غيث ميلاد المطري","Depatment":"الميثانول","Code":"متواجد في العمل","Since":null,"To":null,"TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"8197","Name":"صلاح الدين الجمني  الفيتوري عطاء الله","Depatment":"الميثانول","Code":"متواجد في العمل","Since":null,"To":null,"TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"8196","Name":"مجدي محمد عون بوبكر","Depatment":"الميثانول","Code":"متواجد في العمل","Since":null,"To":null,"TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"8201","Name":"عبدالسلام سعد عبدالقادر","Depatment":"الميثانول","Code":"متواجد في العمل","Since":null,"To":null,"TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"8559","Name":"صلاح محمد منصور العماري","Depatment":"الميثانول","Code":"متواجد في العمل","Since":null,"To":null,"TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"8560","Name":"صالح عقيلة عبدالكريم","Depatment":"الميثانول","Code":"متواجد في العمل","Since":null,"To":null,"TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"10777","Name":"جلال احمد محمد المسلاتي","Depatment":"الميثانول","Code":"متواجد في العمل","Since":null,"To":null,"TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"10805","Name":"علي مفتاح حمد امشهر","Depatment":"الميثانول","Code":"متواجد في العمل","Since":null,"To":null,"TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"11078","Name":"عادل رمضان رحومة بوسدرية","Depatment":"الميثانول","Code":"متواجد في العمل","Since":null,"To":null,"TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"11109","Name":"عبدالله حمد ارحيم محمد","Depatment":"الميثانول","Code":"متواجد في العمل","Since":null,"To":null,"TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"11127","Name":"فرج  عبدالقادر عبدالله خليفة","Depatment":"الميثانول","Code":"متواجد في العمل","Since":null,"To":null,"TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"11154","Name":"المبروك فرج صالح رحيل","Depatment":"الميثانول","Code":"متواجد في العمل","Since":null,"To":null,"TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"11460","Name":"عبدالسلام حمد عبدالسلام بوخمادة","Depatment":"الميثانول","Code":"متواجد في العمل","Since":null,"To":null,"TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"11464","Name":"صالح علي ابراهيم علي","Depatment":"الميثانول","Code":"متواجد في العمل","Since":null,"To":null,"TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"11498","Name":"ابوبكر سالم عبدالنبي بورقعة","Depatment":"الميثانول","Code":"متواجد في العمل","Since":null,"To":null,"TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"11500","Name":"فتحي مفتاح جمعة حمد","Depatment":"الميثانول","Code":"متواجد في العمل","Since":null,"To":null,"TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"11535","Name":"منصور صالح جبريل","Depatment":"الميثانول","Code":"متواجد في العمل","Since":null,"To":null,"TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"11957","Name":"عبدالسلام سالم عبدالنبي اهويدي","Depatment":"الميثانول","Code":"متواجد في العمل","Since":null,"To":null,"TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"11958","Name":"عيسي يوسف محمد عيسى","Depatment":"الميثانول","Code":"متواجد في العمل","Since":null,"To":null,"TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"12258","Name":"عبدالحميد رابح السنوسي اصميدة","Depatment":"الميثانول","Code":"متواجد في العمل","Since":null,"To":null,"TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"12259","Name":"محمد عابد علي عبدالحفيظ","Depatment":"الميثانول","Code":"متواجد في العمل","Since":null,"To":null,"TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"12260","Name":"أسامة محمود بالقاسم منصور","Depatment":"الميثانول","Code":"متواجد في العمل","Since":null,"To":null,"TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"12261","Name":"عبدالله سليمان مهيوس عبدالسلام","Depatment":"الميثانول","Code":"متواجد في العمل","Since":null,"To":null,"TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"12263","Name":"محمد رجب احميدة","Depatment":"الميثانول","Code":"متواجد في العمل","Since":null,"To":null,"TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"12264","Name":"سعد علي عمر عبدالجليل","Depatment":"الميثانول","Code":"متواجد في العمل","Since":null,"To":null,"TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"12267","Name":"محمد مناع مسعود بشير","Depatment":"الميثانول","Code":"متواجد في العمل","Since":null,"To":null,"TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"12269","Name":"محمد عبدالنبي عبدالمولى عبدالنبي ","Depatment":"الميثانول","Code":"متواجد في العمل","Since":null,"To":null,"TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"12272","Name":"احمد سعيد عبدالقادر  جادالله","Depatment":"الميثانول","Code":"متواجد في العمل","Since":null,"To":null,"TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"12286","Name":"صالح عيسى محمد قشاط","Depatment":"الميثانول","Code":"متواجد في العمل","Since":null,"To":null,"TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"13066","Name":"محمد حمد الحضيري","Depatment":"الميثانول","Code":"متواجد في العمل","Since":null,"To":null,"TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"13103","Name":"عطاف امسيب يوسف امسيب","Depatment":"الميثانول","Code":"متواجد في العمل","Since":null,"To":null,"TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"13144","Name":"عبدالحكيم احمد الصالحين","Depatment":"الميثانول","Code":"متواجد في العمل","Since":null,"To":null,"TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"13151","Name":"خالد ابريك محمد يوسف","Depatment":"الميثانول","Code":"متواجد في العمل","Since":null,"To":null,"TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"13199","Name":"وليد عثمان محمد","Depatment":"الميثانول","Code":"متواجد في العمل","Since":null,"To":null,"TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"13200","Name":"عبدالحليم ابوعجيله علي","Depatment":"الميثانول","Code":"متواجد في العمل","Since":null,"To":null,"TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"13543","Name":"رضا سالم مجيد عبدالله","Depatment":"الميثانول","Code":"متواجد في العمل","Since":null,"To":null,"TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"13584","Name":"محمد عبدالسلام جمعة سالم","Depatment":"الميثانول","Code":"متواجد في العمل","Since":null,"To":null,"TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"13983","Name":"حمد حسن امحمد الفرجاني","Depatment":"الميثانول","Code":"متواجد في العمل","Since":null,"To":null,"TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"14766","Name":"خميس الأزهر مسعود الذيب","Depatment":"الميثانول","Code":"متواجد في العمل","Since":null,"To":null,"TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"14910","Name":"صالح ادريس على عبدالرحمن","Depatment":"الميثانول","Code":"متواجد في العمل","Since":null,"To":null,"TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"15741","Name":"حمزه يوسف عبدالسيد عبدالخالق","Depatment":"الميثانول","Code":"متواجد في العمل","Since":null,"To":null,"TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"16039","Name":"احمد محمد عبدالنبي الحجل","Depatment":"الميثانول","Code":"متواجد في العمل","Since":null,"To":null,"TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"16261","Name":"عبدالرحمن عبدالله امحمد العائب","Depatment":"الميثانول","Code":"متواجد في العمل","Since":null,"To":null,"TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"16431","Name":"احمد مفتاح عمر ميلاد","Depatment":"الميثانول","Code":"متواجد في العمل","Since":null,"To":null,"TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"16561","Name":"جمال سليمان السنوسي صالح","Depatment":"الميثانول","Code":"متواجد في العمل","Since":null,"To":null,"TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"16564","Name":"محمد الشاذلي بشير القماطي","Depatment":"الميثانول","Code":"متواجد في العمل","Since":null,"To":null,"TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"16565","Name":"الكيلاني محمد علي الكيلاني","Depatment":"الميثانول","Code":"متواجد في العمل","Since":null,"To":null,"TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"16568","Name":"عبدالله محمد سرير صوان","Depatment":"الميثانول","Code":"متواجد في العمل","Since":null,"To":null,"TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"18282","Name":"سيف النصر يوسف محمد يوسف","Depatment":"الميثانول","Code":"متواجد في العمل","Since":null,"To":null,"TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"18301","Name":"محمد عبدالقادر احمد بازامة","Depatment":"الميثانول","Code":"متواجد في العمل","Since":null,"To":null,"TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"18931","Name":"بشير محمد احميد الهدار","Depatment":"الميثانول","Code":"متواجد في العمل","Since":null,"To":null,"TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"18932","Name":"أسامة مصطفي الطاهر اجويلي","Depatment":"الميثانول","Code":"متواجد في العمل","Since":null,"To":null,"TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"19469","Name":"وليد امحمد حماد قشقش","Depatment":"الميثانول","Code":"متواجد في العمل","Since":null,"To":null,"TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"19799","Name":"خالد امحمد احمد ابوعائشة","Depatment":"الميثانول","Code":"متواجد في العمل","Since":null,"To":null,"TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"19800","Name":"مفتاح عمران مفتاح ارحومة","Depatment":"الميثانول","Code":"متواجد في العمل","Since":null,"To":null,"TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"19994","Name":"محمد جمعة صالح فلاطة","Depatment":"الميثانول","Code":"متواجد في العمل","Since":null,"To":null,"TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"20123","Name":"المعتز بالله جابر مهنى عمر","Depatment":"الميثانول","Code":"متواجد في العمل","Since":null,"To":null,"TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"20313","Name":"خليفه محمد عبالرحمن خزري","Depatment":"الميثانول","Code":"متواجد في العمل","Since":null,"To":null,"TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"20314","Name":"محمد عبدالمنعم عبدالمجيد موسى","Depatment":"الميثانول","Code":"متواجد في العمل","Since":null,"To":null,"TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"20343","Name":"عبدالرحمن عقيلة محمد الفاخري","Depatment":"الميثانول","Code":"متواجد في العمل","Since":null,"To":null,"TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"20761","Name":"المهدي احمد المهدي مكاري","Depatment":"الميثانول","Code":"متواجد في العمل","Since":null,"To":null,"TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"20764","Name":"طارق علي حسن السويح علي","Depatment":"الميثانول","Code":"متواجد في العمل","Since":null,"To":null,"TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"20782","Name":"عبدالهادي محمد ابراهيم كرمي","Depatment":"الميثانول","Code":"متواجد في العمل","Since":null,"To":null,"TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"21898","Name":"محمد الهادي بشير بن رابحة","Depatment":"الميثانول","Code":"متواجد في العمل","Since":null,"To":null,"TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"21965","Name":"عبدالهادي عبدربة سليمان","Depatment":"الميثانول","Code":"متواجد في العمل","Since":null,"To":null,"TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"22103","Name":"علي حامد علي محمد","Depatment":"الميثانول","Code":"متواجد في العمل","Since":null,"To":null,"TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"22425","Name":"عبدالرحمن مفتاح سلطان المبروك","Depatment":"الميثانول","Code":"متواجد في العمل","Since":null,"To":null,"TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"22429","Name":"ايوب محمد الصغير أحمد","Depatment":"الميثانول","Code":"متواجد في العمل","Since":null,"To":null,"TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"22433","Name":"صلاح مسعود مفتاح جحا","Depatment":"الميثانول","Code":"متواجد في العمل","Since":null,"To":null,"TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"22440","Name":"انس ابوعجيلة الهادي سلمان","Depatment":"الميثانول","Code":"متواجد في العمل","Since":null,"To":null,"TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"22447","Name":"عبدالجواد قذافي جواد طيب","Depatment":"الميثانول","Code":"متواجد في العمل","Since":null,"To":null,"TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"22473","Name":"ابراهيم محمد علي عبدالهادي","Depatment":"الميثانول","Code":"متواجد في العمل","Since":null,"To":null,"TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"22477","Name":"ايوب رمضان صالح السنوسي","Depatment":"الميثانول","Code":"متواجد في العمل","Since":null,"To":null,"TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"22478","Name":"امجد عبدالقادر عبدالعزيز عبدالقادر","Depatment":"الميثانول","Code":"متواجد في العمل","Since":null,"To":null,"TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"22479","Name":"محمد حمد محمد رمضان","Depatment":"الميثانول","Code":"متواجد في العمل","Since":null,"To":null,"TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"22576","Name":"عبدالله لامين عبدالله حمد","Depatment":"الميثانول","Code":"متواجد في العمل","Since":null,"To":null,"TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"22811","Name":"سليمان محمد سليمان عبدالمجيد","Depatment":"الميثانول","Code":"متواجد في العمل","Since":null,"To":null,"TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"22864","Name":"عبدالكريم امبارك عبدالكريم","Depatment":"الميثانول","Code":"متواجد في العمل","Since":null,"To":null,"TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"23017","Name":"زكريا سعد محمد احميد","Depatment":"الميثانول","Code":"متواجد في العمل","Since":null,"To":null,"TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"23029","Name":"سعيد حمد عبدالكريم العرج","Depatment":"الميثانول","Code":"متواجد في العمل","Since":null,"To":null,"TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"23034","Name":"المنذر صالحين خليفة حمد","Depatment":"الميثانول","Code":"متواجد في العمل","Since":null,"To":null,"TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"23057","Name":"خالد حمد صالح عمر","Depatment":"الميثانول","Code":"متواجد في العمل","Since":null,"To":null,"TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"23068","Name":"صلاح امبارك عبدالكريم امبارك","Depatment":"الميثانول","Code":"متواجد في العمل","Since":null,"To":null,"TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"23076","Name":"مفتاح عبدالحميد مفتاح ابراهيم","Depatment":"الميثانول","Code":"متواجد في العمل","Since":null,"To":null,"TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"23240","Name":"محمد المبروك علي محمد","Depatment":"الميثانول","Code":"متواجد في العمل","Since":null,"To":null,"TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"807","Name":"M.S.Hussain","Depatment":"الميثانول","Code":"متواجد في العمل","Since":null,"To":null,"TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"10450","Name":"Mahmoud Gebril","Depatment":"الميثانول","Code":"متواجد في العمل","Since":null,"To":null,"TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"10821","Name":"M M SHAMSULALAM","Depatment":"الميثانول","Code":"متواجد في العمل","Since":null,"To":null,"TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"12749","Name":"B.Phupesh","Depatment":"الميثانول","Code":"متواجد في العمل","Since":null,"To":null,"TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"20791","Name":"K C DEBNATH","Depatment":"الميثانول","Code":"متواجد في العمل","Since":null,"To":null,"TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"20792","Name":"MD. ALI AKBAR","Depatment":"الميثانول","Code":"متواجد في العمل","Since":null,"To":null,"TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"20793","Name":"ROBIN KUMER SARKER","Depatment":"الميثانول","Code":"متواجد في العمل","Since":null,"To":null,"TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"20794","Name":"A.K.M AMAN-ULLAH","Depatment":"الميثانول","Code":"متواجد في العمل","Since":null,"To":null,"TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"20795","Name":"MD.ZAID-ULISLAM","Depatment":"الميثانول","Code":"متواجد في العمل","Since":null,"To":null,"TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"20796","Name":"MD AMIRUL ISLAM SIKDER","Depatment":"الميثانول","Code":"متواجد في العمل","Since":null,"To":null,"TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"20797","Name":"KHANDAKAR MOHIUDDIN","Depatment":"الميثانول","Code":"متواجد في العمل","Since":null,"To":null,"TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"20798","Name":"MD RASEL KHANDAKER","Depatment":"الميثانول","Code":"متواجد في العمل","Since":null,"To":null,"TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"20800","Name":"MD MASUD KARIM","Depatment":"الميثانول","Code":"متواجد في العمل","Since":null,"To":null,"TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"20801","Name":"MD RABIUL ISLAM","Depatment":"الميثانول","Code":"متواجد في العمل","Since":null,"To":null,"TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"20802","Name":"MD. HAFIZ-URRAHMAN","Depatment":"الميثانول","Code":"متواجد في العمل","Since":null,"To":null,"TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"20803","Name":"MD.MAHBUB-URRAHMAN","Depatment":"الميثانول","Code":"متواجد في العمل","Since":null,"To":null,"TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"20820","Name":"MOHAMMAD NAZIM-UL-GONI","Depatment":"الميثانول","Code":"متواجد في العمل","Since":null,"To":null,"TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"21970","Name":"AL MOMIN JAMIUL","Depatment":"الميثانول","Code":"متواجد في العمل","Since":null,"To":null,"TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"21973","Name":"MD SIRAJUL ISLAM","Depatment":"الميثانول","Code":"متواجد في العمل","Since":null,"To":null,"TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"21974","Name":"ABDUL AWAL","Depatment":"الميثانول","Code":"متواجد في العمل","Since":null,"To":null,"TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"21975","Name":"MOHAMMAD ASAD UZ ZAMAN","Depatment":"الميثانول","Code":"متواجد في العمل","Since":null,"To":null,"TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"21976","Name":"MD ENAMUL HAQ","Depatment":"الميثانول","Code":"متواجد في العمل","Since":null,"To":null,"TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"21972","Name":"ASHRAF HOSSAIN","Depatment":"الميثانول","Code":"متواجد في العمل","Since":null,"To":null,"TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"21977","Name":"FARHAD ALI","Depatment":"الميثانول","Code":"متواجد في العمل","Since":null,"To":null,"TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"21978","Name":"MD AHASANUL KABIR DIDAR","Depatment":"الميثانول","Code":"متواجد في العمل","Since":null,"To":null,"TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"21980","Name":"APAN SUTRADHAR","Depatment":"الميثانول","Code":"متواجد في العمل","Since":null,"To":null,"TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"21969","Name":"MD NURUL ISLAM","Depatment":"الميثانول","Code":"متواجد في العمل","Since":null,"To":null,"TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"21979","Name":"SHAHIDULLAH","Depatment":"الميثانول","Code":"متواجد في العمل","Since":null,"To":null,"TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"22218","Name":"H.M.IQBAL","Depatment":"الميثانول","Code":"متواجد في العمل","Since":null,"To":null,"TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"18119","Name":"محمد ناجي عمر تيتوحه","Depatment":"المصفاة","Code":"B","Since":"43824","To":"مستمر","TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"14759","Name":"محمد محمود محمد سلامة","Depatment":"المصفاة","Code":"F","Since":"42353","To":"مستمر","TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"14911","Name":"زيدان علي إبراهيم اشويقي","Depatment":"المصفاة","Code":"F","Since":"42353","To":"مستمر","TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"11524","Name":"خميس امحمد بلعيد ابوبكر","Depatment":"المصفاة","Code":"K","Since":null,"To":null,"TravelDate":"2025-08-25T22:00:00Z","Duration":"26أسبوع","Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"12013","Name":"محمود أحمد صالح علي","Depatment":"المصفاة","Code":"K","Since":null,"To":null,"TravelDate":"2025-08-26T22:00:00Z","Duration":"26أسبوع","Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"12513","Name":"عبدالسلام عمران علي معوال ","Depatment":"المصفاة","Code":"K","Since":null,"To":null,"TravelDate":"2025-08-26T22:00:00Z","Duration":"26أسبوع","Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"12837","Name":"عبدالغني مفتاح رمضان علي","Depatment":"المصفاة","Code":"K","Since":null,"To":null,"TravelDate":"2025-08-26T22:00:00Z","Duration":"26أسبوع","Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"14918","Name":"محمد فتحي حامد سليمان ","Depatment":"المصفاة","Code":"K","Since":null,"To":null,"TravelDate":"2025-08-19T22:00:00Z","Duration":"26أسبوع","Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"21676","Name":"عبدالحميد غيث محمد علي","Depatment":"المصفاة","Code":"P","Since":"45782","To":"مستمر","TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"21685","Name":"سليمان صالح سليمان صالح","Depatment":"المصفاة","Code":"P","Since":"45812","To":"مستمر","TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"14762","Name":"معتز بالله علي ابريك الفضيل","Depatment":"المصفاة","Code":"P","Since":"45952","To":"46053","TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"5364","Name":"عمر الطاهر الزيادي","Depatment":"المصفاة","Code":"متواجد في العمل","Since":null,"To":null,"TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"1466","Name":"فتحي فرج سعد القماطي","Depatment":"المصفاة","Code":"متواجد في العمل","Since":null,"To":null,"TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"1467","Name":"محمد محمود محمد امراجع ","Depatment":"المصفاة","Code":"متواجد في العمل","Since":null,"To":null,"TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"1656","Name":"نوري محمد بوخزيم ابوبكر","Depatment":"المصفاة","Code":"متواجد في العمل","Since":null,"To":null,"TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"2482","Name":"جمال سالم فرج عبدالكريم","Depatment":"المصفاة","Code":"متواجد في العمل","Since":null,"To":null,"TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"4377","Name":"فرج عبدالسلام محمد منصور ","Depatment":"المصفاة","Code":"متواجد في العمل","Since":null,"To":null,"TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"4577","Name":"مفتاح عبدالجليل عمر محمد","Depatment":"المصفاة","Code":"متواجد في العمل","Since":null,"To":null,"TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"11213","Name":"محمد بلقاسم بوهريرة موسى","Depatment":"المصفاة","Code":"متواجد في العمل","Since":null,"To":null,"TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"11214","Name":"حامد صالح عبدالجليل ابراهيم","Depatment":"المصفاة","Code":"متواجد في العمل","Since":null,"To":null,"TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"11217","Name":"المبروك علي مفتاح احمد","Depatment":"المصفاة","Code":"متواجد في العمل","Since":null,"To":null,"TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"11218","Name":"عبدالحميد عبدالله محمد بشير","Depatment":"المصفاة","Code":"متواجد في العمل","Since":null,"To":null,"TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"11441","Name":"بوبكر ابشينه عمر قحيط","Depatment":"المصفاة","Code":"متواجد في العمل","Since":null,"To":null,"TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"11463","Name":"صالح غيث محمد عوض","Depatment":"المصفاة","Code":"متواجد في العمل","Since":null,"To":null,"TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"11982","Name":"فائز محمد الحلاج المبري","Depatment":"المصفاة","Code":"متواجد في العمل","Since":null,"To":null,"TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"12037","Name":"عبدالسلام سالم عبدالله هويدي","Depatment":"المصفاة","Code":"متواجد في العمل","Since":null,"To":null,"TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"12285","Name":"عمر امحمد علي الأخرش","Depatment":"المصفاة","Code":"متواجد في العمل","Since":null,"To":null,"TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"13002","Name":"فوزي العريفي سعد امريمي","Depatment":"المصفاة","Code":"متواجد في العمل","Since":null,"To":null,"TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"13287","Name":"بوبكر مسعود بوبكر محمد","Depatment":"المصفاة","Code":"متواجد في العمل","Since":null,"To":null,"TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"13372","Name":"بوبكر معمر محمد بوزقاية","Depatment":"المصفاة","Code":"متواجد في العمل","Since":null,"To":null,"TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"13530","Name":"علي امحمد رشيد محمد","Depatment":"المصفاة","Code":"متواجد في العمل","Since":null,"To":null,"TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"14753","Name":"أحمد جمعة صالح عمر","Depatment":"المصفاة","Code":"متواجد في العمل","Since":null,"To":null,"TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"14756","Name":"أحمد ناجي المبروك عمر","Depatment":"المصفاة","Code":"متواجد في العمل","Since":null,"To":null,"TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"14904","Name":"محمد مفتاح ابوالقاسم اشنيبه","Depatment":"المصفاة","Code":"متواجد في العمل","Since":null,"To":null,"TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"15730","Name":"أحـمد فضيل المبروك عبدالمولى","Depatment":"المصفاة","Code":"متواجد في العمل","Since":null,"To":null,"TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"15738","Name":"حمد عبدالله عبدالحفيظ احمد","Depatment":"المصفاة","Code":"متواجد في العمل","Since":null,"To":null,"TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"15745","Name":"سعيد مفتاح محمد هيبه","Depatment":"المصفاة","Code":"متواجد في العمل","Since":null,"To":null,"TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"16627","Name":"صلاح الدين محمد سعيد بشر","Depatment":"المصفاة","Code":"متواجد في العمل","Since":null,"To":null,"TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"16628","Name":"محمد مازق غيث مازق","Depatment":"المصفاة","Code":"متواجد في العمل","Since":null,"To":null,"TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"16631","Name":"المعتصم بالله خالد سالم محمد","Depatment":"المصفاة","Code":"متواجد في العمل","Since":null,"To":null,"TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"16632","Name":"فرج عبد الجليل صالح خميس","Depatment":"المصفاة","Code":"متواجد في العمل","Since":null,"To":null,"TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"16633","Name":"عمر حسن نصر فائز","Depatment":"المصفاة","Code":"متواجد في العمل","Since":null,"To":null,"TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"16634","Name":"مذكور مفتاح بالقاسم ابراهيم","Depatment":"المصفاة","Code":"متواجد في العمل","Since":null,"To":null,"TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"17344","Name":"حسين صالح عبد اللطيف ","Depatment":"المصفاة","Code":"متواجد في العمل","Since":null,"To":null,"TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"19744","Name":"احمد رافع محمد العمامي","Depatment":"المصفاة","Code":"متواجد في العمل","Since":null,"To":null,"TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"19850","Name":"عبدالرحيم سعد محمد عبدالرحيم","Depatment":"المصفاة","Code":"متواجد في العمل","Since":null,"To":null,"TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"19853","Name":"عمر عبدالله سعيد ارعيض","Depatment":"المصفاة","Code":"متواجد في العمل","Since":null,"To":null,"TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"21675","Name":"محمد جاب الله عبدالسلام","Depatment":"المصفاة","Code":"متواجد في العمل","Since":null,"To":null,"TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"21677","Name":"احمد عمر خليفة بوسبعة","Depatment":"المصفاة","Code":"متواجد في العمل","Since":null,"To":null,"TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"21697","Name":"عبدالله يوسف عبدالله","Depatment":"المصفاة","Code":"متواجد في العمل","Since":null,"To":null,"TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"21797","Name":"علي مختار محمد محمود","Depatment":"المصفاة","Code":"متواجد في العمل","Since":null,"To":null,"TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"16497","Name":"عبدالرحيم عبداللطيف عبدالرحيم","Depatment":"المصفاة","Code":"متواجد في العمل","Since":null,"To":null,"TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"16630","Name":"خالد احمد مفتاح صالح","Depatment":"المصفاة","Code":"متواجد في العمل","Since":null,"To":null,"TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"18333","Name":"عبدالعظيم اشوال عبدالرحيم","Depatment":"المصفاة","Code":"متواجد في العمل","Since":null,"To":null,"TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"18763","Name":"صالح جمال سيد محمود","Depatment":"المصفاة","Code":"متواجد في العمل","Since":null,"To":null,"TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"18982","Name":"صالح عياد يونس","Depatment":"المصفاة","Code":"متواجد في العمل","Since":null,"To":null,"TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"20742","Name":"ضياء حسين جمعة القديم","Depatment":"المصفاة","Code":"متواجد في العمل","Since":null,"To":null,"TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"20781","Name":"خيرالله عبدالقادر محمدعلي","Depatment":"المصفاة","Code":"متواجد في العمل","Since":null,"To":null,"TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"22474","Name":"محمد عبدالسلام عاشور","Depatment":"المصفاة","Code":"متواجد في العمل","Since":null,"To":null,"TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"22475","Name":"منذر سالم حسن الشلو","Depatment":"المصفاة","Code":"متواجد في العمل","Since":null,"To":null,"TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"22476","Name":"مصطفى عبدالسلام مصطفى ","Depatment":"المصفاة","Code":"متواجد في العمل","Since":null,"To":null,"TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"22480","Name":"غيث سليم غيث","Depatment":"المصفاة","Code":"متواجد في العمل","Since":null,"To":null,"TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"22491","Name":"مصطفى منصور بشير","Depatment":"المصفاة","Code":"متواجد في العمل","Since":null,"To":null,"TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"22530","Name":"الزروق سالم إبراهيم","Depatment":"المصفاة","Code":"متواجد في العمل","Since":null,"To":null,"TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"22713","Name":"عبدالحميد صالح سعد","Depatment":"المصفاة","Code":"منقول","Since":"2026/01/01","To":null,"TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"22721","Name":"رواد رجب يوسف سعيد","Depatment":"المصفاة","Code":"متواجد في العمل","Since":null,"To":null,"TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"22725","Name":"يحي عمر شعيب خليل","Depatment":"المصفاة","Code":"متواجد في العمل","Since":null,"To":null,"TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"22739","Name":"حمد خليل ادم محمد","Depatment":"المصفاة","Code":"متواجد في العمل","Since":null,"To":null,"TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"23084","Name":"احمد حسن ابراهيم عمر","Depatment":"المصفاة","Code":"متواجد في العمل","Since":null,"To":null,"TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"23169","Name":"سعد ابوبكر سعد ابوبكر","Depatment":"المصفاة","Code":"متواجد في العمل","Since":null,"To":null,"TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"23178","Name":"عامر ابوبكر حمد","Depatment":"المصفاة","Code":"متواجد في العمل","Since":null,"To":null,"TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"23264","Name":"عبالمالك زيدان حمد ذاود","Depatment":"المصفاة","Code":"متواجد في العمل","Since":null,"To":null,"TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"23301","Name":"محمد موسى محمد صالح","Depatment":"المصفاة","Code":"متواجد في العمل","Since":null,"To":null,"TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"23603","Name":"احمد يونس عمر مفتاح","Depatment":"المصفاة","Code":"متواجد في العمل","Since":null,"To":null,"TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"23678","Name":"علي جمعة محمد علي","Depatment":"المصفاة","Code":"متواجد في العمل","Since":null,"To":null,"TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"24034","Name":"هاني فوزي حبيب","Depatment":"المصفاة","Code":"متواجد في العمل","Since":null,"To":null,"TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"18954","Name":"جابر محمد عبدالسلام","Depatment":"عمليات التكرير","Code":"منقول","Since":"45080","To":null,"TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"19112","Name":"سامي الصادق رجب","Depatment":"معمل الغاز","Code":"منقول","Since":"44994","To":null,"TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"11215","Name":"محمد أحمد العكروت","Depatment":"معمل الغاز","Code":"منقول","Since":"45260","To":null,"TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"11404","Name":"أشرف سليمان محمد","Depatment":"معمل الغاز","Code":"منقول","Since":"45107","To":null,"TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"13059","Name":"علي مسعود خليفة زميط","Depatment":"معمل الغاز","Code":"منقول","Since":"45262","To":null,"TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"16621","Name":"محمد عثمان حسين","Depatment":"معمل الغاز","Code":"منقول","Since":"45278","To":null,"TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"13320","Name":"محمد علي سالم ارحومة","Depatment":"عمليات التكرير","Code":"منقول","Since":"44967","To":null,"TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"08200","Name":"طارق عمر سليمان العيدودي","Depatment":"الميثانول","Code":"منقول","Since":"45078","To":null,"TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"08566","Name":"منصور محمود اشتيوي صالح","Depatment":"الميثانول","Code":"منقول","Since":"45137","To":null,"TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"16562","Name":"عبدالمنعم خليفة حسن رجب","Depatment":"الميثانول","Code":"منقول","Since":"45231","To":null,"TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"18952","Name":"حمزة جمعة محمد موسى","Depatment":"الميثانول","Code":"منقول","Since":"45048","To":null,"TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"15887","Name":"يوسف عبدالحفيظ حمد علي","Depatment":"الميثانول","Code":"منقول","Since":"45200","To":null,"TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"14460","Name":"طارق شعبان سعيد الحاج","Depatment":"الميثانول","Code":"منقول","Since":"45109","To":null,"TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"17758","Name":"صالح مفتاح مفتاح علي","Depatment":"الميثانول","Code":"منقول","Since":"45170","To":null,"TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"12262","Name":"حمد عمر محمد وريث","Depatment":"الميثانول","Code":"منقول","Since":"45200","To":null,"TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"13509","Name":"معمر محمد الدعيكي","Depatment":"معمل الغاز","Code":"منقول","Since":"45107","To":null,"TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"01177","Name":"حمد علي اليدري ","Depatment":"معمل الغاز","Code":"منقول","Since":"45143","To":null,"TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"18063","Name":"محمد ميلود الرحيبي","Depatment":"معمل الغاز","Code":"منقول","Since":"45137","To":null,"TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"12422","Name":"صالح محمود علي الفايدي","Depatment":"الميثانول","Code":"منقول","Since":"45109","To":null,"TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"11082","Name":"عبدالمنعم خليفة هدوار","Depatment":"الميثانول","Code":"منقول","Since":"45231","To":null,"TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"11492","Name":"بوبكر نصر الهميلي","Depatment":"معمل الغاز","Code":"منقول","Since":"45092","To":null,"TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"14923","Name":"يوسف أمحمد عمر","Depatment":"عمليات التكرير","Code":"منقول","Since":"44933","To":null,"TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"02982","Name":"صالح لول صالح","Depatment":"عمليات التكرير","Code":"منقول","Since":"44935","To":null,"TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"12456","Name":"فيصل محمد مفتاح ","Depatment":"معمل الغاز","Code":"منقول","Since":"45383","To":null,"TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"14673","Name":"محمد صالح جبريل ","Depatment":"معمل الغاز","Code":"منقول","Since":"45413","To":null,"TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"18242","Name":"أسامة عثمان محمد","Depatment":"معمل الغاز","Code":"منقول","Since":"45444","To":null,"TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"16616","Name":"محمد عبدالسلام بالقاسم","Depatment":"معمل الغاز","Code":"منقول","Since":"45474","To":null,"TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"19632","Name":"خالد حسين ميلاد","Depatment":"معمل الغاز","Code":"منقول","Since":"45474","To":null,"TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"18896","Name":"خليل خيري خليل","Depatment":"معمل الغاز","Code":"منقول","Since":"45474","To":null,"TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"12073","Name":"فرج خالد إدريس ","Depatment":"معمل الغاز","Code":"منقول","Since":"45498","To":null,"TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"14913","Name":"الشارف سعيد الشارف","Depatment":"معمل الغاز","Code":"منقول","Since":"45536","To":null,"TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"20423","Name":"سند عبدالناصر خليفة","Depatment":"معمل الغاز","Code":"منقول","Since":"45538","To":null,"TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"20768","Name":"وليد شعبان شقلوف","Depatment":"الميثانول","Code":"منقول","Since":"45295","To":null,"TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"11444","Name":"محمد سعيد عبدالعزيز","Depatment":"الميثانول","Code":"منقول","Since":"45390","To":null,"TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"19644","Name":"عبدالسلام امخاطرة عبدالسلام","Depatment":"الميثانول","Code":"منقول","Since":"45452","To":null,"TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"17934","Name":"ابراهيم عمر الراجحي","Depatment":"الميثانول","Code":"منقول","Since":"45474","To":null,"TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"13353","Name":"محمد عبدالحميد ابوتبينة","Depatment":"الميثانول","Code":"منقول","Since":"45483","To":null,"TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"530","Name":"حسن عبدالرسول الشبلي","Depatment":"الميثانول","Code":"منقول","Since":"45505","To":null,"TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"8519","Name":"وحيد عبدالحميد قريرة","Depatment":"الميثانول","Code":"منقول","Since":"45635","To":null,"TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"12450","Name":"فرج سعد الماوي","Depatment":"معمل الغاز","Code":"منقول","Since":"45517","To":null,"TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"18083","Name":"عقيلة سعيد عقيلة","Depatment":"معمل الغاز","Code":"منقول","Since":"45444","To":null,"TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"16635","Name":"سالم حمد سعيد","Depatment":"المصفاة","Code":"منقول","Since":"45555","To":null,"TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"13178","Name":"عبدالسلام جمعة جاب الله","Depatment":"الميثانول","Code":"منقول","Since":"45658","To":null,"TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"18953","Name":"انور منصور محمد القماطي","Depatment":"الميثانول","Code":"منقول","Since":"45722","To":null,"TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"12048","Name":"عبدالـرحمن سـعيـد عـقــوب","Depatment":"الميثانول","Code":"منقول","Since":"45707","To":null,"TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"12416","Name":"فرج جاب الله محمد","Depatment":"الميثانول","Code":"منقول","Since":"45870","To":null,"TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"21678","Name":"سالم سعيد سالم سعيد","Depatment":"المصفاة","Code":"منقول","Since":"45689","To":null,"TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"21679","Name":"اعلية محمود امهدي ","Depatment":"المصفاة","Code":"منقول","Since":"45689","To":null,"TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"13142","Name":"علي موسى موسى","Depatment":"المصفاة","Code":"منقول","Since":"45809","To":null,"TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"19801","Name":"الغناي زيدان الغناي","Depatment":"المصفاة","Code":"منقول","Since":"45931","To":null,"TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"11494","Name":"صابر محمد سعد","Depatment":"معمل الغاز","Code":"منقول","Since":"45761","To":null,"TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"20316","Name":"محمد حمد مفتاح ","Depatment":"معمل الغاز","Code":"منقول","Since":"45748","To":null,"TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"19635","Name":"أشرف محمد محمد الرحموني","Depatment":"معمل الغاز","Code":"منقول","Since":"45778","To":null,"TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"14676","Name":"أسامة رمضان بلعيد","Depatment":"معمل الغاز","Code":"منقول","Since":"45778","To":null,"TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"19539","Name":"ابراهيم علي عبدالله","Depatment":"معمل الغاز","Code":"منقول","Since":"45809","To":null,"TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"13303","Name":"محمد هارون حمزة","Depatment":"معمل الغاز","Code":"منقول","Since":"45809","To":null,"TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"14688","Name":"فؤاد صالح محمد","Depatment":"معمل الغاز","Code":"منقول","Since":"45931","To":null,"TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"23219","Name":"أحمد جمعة عمران","Depatment":"المصفاة","Code":"منقول","Since":"45962","To":null,"TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"22734","Name":"محمد عبدالمولى عمران","Depatment":"المصفاة","Code":"منقول","Since":"45962","To":null,"TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"23262","Name":"رمضان احمد عبدالعاطي رمضان","Depatment":"المصفاة","Code":"منقول","Since":"46023","To":null,"TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"00288","Name":"بوشناف علي بوشناف","Depatment":"عمليات التكرير","Code":"متقاعد","Since":null,"To":null,"TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":null,"Retirementdate":"2023-07-01"},{"EmployeeID":"05363","Name":" عياد محمد رحومه ","Depatment":"عمليات التكرير","Code":"متقاعد","Since":null,"To":null,"TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":null,"Retirementdate":"2026-01-10"},{"EmployeeID":"00435","Name":"سعد محمد فتح الله","Depatment":"معمل الغاز","Code":"متقاعد","Since":null,"To":null,"TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":null,"Retirementdate":"2023-07-01"},{"EmployeeID":"00828","Name":"جمال عبدالسلام ابراهيم","Depatment":"معمل الغاز","Code":"متقاعد","Since":null,"To":null,"TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":null,"Retirementdate":"2023-07-01"},{"EmployeeID":"00844","Name":"محمد جمعة محمود","Depatment":"معمل الغاز","Code":"متقاعد","Since":null,"To":null,"TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":null,"Retirementdate":"2023-07-20"},{"EmployeeID":"01209","Name":"عوض حمد الترهوني","Depatment":"معمل الغاز","Code":"متقاعد","Since":null,"To":null,"TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":null,"Retirementdate":"2024-08-24"},{"EmployeeID":"05993","Name":"D MALIXI","Depatment":"معمل الغاز","Code":"متقاعد","Since":null,"To":null,"TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":null,"Retirementdate":"2025-02-21"},{"EmployeeID":"00585","Name":"حمد محمد الفالح","Depatment":"الميثانول","Code":"متقاعد","Since":null,"To":null,"TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":null,"Retirementdate":"2023-07-01"},{"EmployeeID":"00590","Name":"سالم فائز نصيب","Depatment":"الميثانول","Code":"متقاعد","Since":null,"To":null,"TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":null,"Retirementdate":"2023-07-01"},{"EmployeeID":"00587","Name":"سالم ادريس سعيد","Depatment":"الميثانول","Code":"متقاعد","Since":null,"To":null,"TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":null,"Retirementdate":"2023-07-01"},{"EmployeeID":"00606","Name":"محمد جبريل علي","Depatment":"الميثانول","Code":"متقاعد","Since":null,"To":null,"TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":null,"Retirementdate":"2023-07-01"},{"EmployeeID":"00561","Name":"رجـب محمـد الفــرجانــى","Depatment":"الميثانول","Code":"متقاعد","Since":null,"To":null,"TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":null,"Retirementdate":"2024-05-12"},{"EmployeeID":"00248","Name":"سعيد عبدالله مفتاح","Depatment":"الميثانول","Code":"متقاعد","Since":null,"To":null,"TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":null,"Retirementdate":"2024-07-01"},{"EmployeeID":"00573","Name":"A E SHAKHAWAT HOSAIN","Depatment":"الميثانول","Code":"متقاعد","Since":null,"To":null,"TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":null,"Retirementdate":"2025-12-31"},{"EmployeeID":"19968","Name":"M. ACHMAD","Depatment":"الميثانول","Code":"مفصول","Since":"45139","To":null,"TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":"10819","Name":"P.B.Das","Depatment":"الميثانول","Code":"مستقيل","Since":"45950","To":null,"TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":null,"Name":null,"Depatment":null,"Code":null,"Since":null,"To":null,"TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null},{"EmployeeID":null,"Name":null,"Depatment":null,"Code":null,"Since":null,"To":null,"TravelDate":null,"Duration":null,"Remarks":null,"SecondeeDdepartment":null,"Retirementdate":null}];  // ← هذا الجزء يأتي من Power Automate
+const data = rawData.body || rawData || [];
+
+const EXCLUDED_STATUSES = ["مستقيل", "متقاعد", "منقول", "مفصول"];
+
+const STATUS_COLORS = {
+  "متواجد في العمل": "#1abc9c",
+  "منقول": "#e74c3c",
+  "غياب": "#f1c40f",
+  "منتدب": "#3498db",
+  "متقاعد": "#9b59b6",
+  "K": "#e67e22",
+  "A": "#27ae60",
+  "B": "#f39c12",
+  "P": "#8e44ad",
+  "فى إدارة الصيانة": "#16a085",
+  "مفصول": "#c0392b",
+  "مستقيل": "#7f8c8d"
+};
+
+let currentTab = "القوى العاملة";
+let currentDeptFilter = ""; // متغير لتخزين اسم القسم عند الفلترة
+let searchTerm = "";
+
+function initTabs() {
+  const tabsEl = document.getElementById("tabs");
+  const codes = [...new Set(data.map(x => (x.Code || "").trim()).filter(c => c && c !== "NULL" && c !== ""))];
+
+  let html = `<div class="tab all-tab ${currentTab==='القوى العاملة'?'active':''}" onclick="switchTab('القوى العاملة', this)">القوى العاملة</div>`;
+
+  codes.forEach(code => {
+    html += `<div class="tab ${currentTab===code?'active':''}" onclick="switchTab('${code}', this)">${code}</div>`;
+  });
+
+  tabsEl.innerHTML = html;
+}
+
+function switchTab(value, elem) {
+  currentTab = value;
+  currentDeptFilter = ""; // تصفير فلتر القسم عند تغيير التبويب
+  
+  document.querySelectorAll(".tab").forEach(el => el.classList.remove("active"));
+  if (elem) {
+    elem.classList.add("active");
+  } else if (value === "ALL_DETAILS") {
+    document.querySelector(".tab.all-tab").classList.add("active");
+  }
+  // ملاحظة: حالة DEPT_DETAILS لا تقوم بتنشيط تبويب معين لأنها فرعية
+  render();
+}
+
+function excelSerialToDDMMYYYY(val) {
+  if (!val) return "";
+  if (String(val).trim() === "مستمر") return "مستمر";
+  
+  const serial = parseFloat(val);
+  if (isNaN(serial) || serial < 2000) return val;
+
+  const utc_days  = Math.floor(serial - 25569);
+  const date = new Date(utc_days * 86400 * 1000);
+  const frac = serial - Math.floor(serial);
+  if (frac > 0) date.setUTCSeconds(Math.round(frac * 86400));
+  const d = date.getDate().toString().padStart(2,'0');
+  const m = (date.getMonth()+1).toString().padStart(2,'0');
+  const y = date.getFullYear();
+  return `${d}-${m}-${y}`;
+}
+
+function isActiveEmployee(item) {
+  const code = (item.Code || "").trim();
+  return code && !EXCLUDED_STATUSES.includes(code);
+}
+
+function getFilteredData() {
+  let filtered = data.filter(item => item && item.EmployeeID && item.Name);
+
+  if (currentTab === "DEPT_DETAILS") {
+    // فلترة بالقسم فقط (عرض الجميع في هذا القسم)
+    filtered = filtered.filter(x => (x.Depatment || "").includes(currentDeptFilter));
+  } 
+  else if (currentTab !== "القوى العاملة" && currentTab !== "ALL_DETAILS") {
+    // فلترة بالكود
+    filtered = filtered.filter(x => (x.Code || "").trim() === currentTab);
+  }
+
+  if (searchTerm.trim()) {
+    const term = searchTerm.trim().toLowerCase();
+    filtered = filtered.filter(x => 
+      (x.Name || "").toLowerCase().includes(term) ||
+      String(x.EmployeeID || "").includes(term)
+    );
+  }
+
+  return filtered;
+}
+
+function showDepartmentDetails(deptName) {
+  currentDeptFilter = deptName;
+  currentTab = "DEPT_DETAILS";
+  render();
+}
+
+function renderDashboard() {
+  let totalActive = data.filter(item => item && item.EmployeeID && isActiveEmployee(item)).length;
+
+  let methanolCount = data.filter(item => isActiveEmployee(item) && (item.Depatment || "").includes("الميثانول")).length;
+  let gasCount = data.filter(item => isActiveEmployee(item) && (item.Depatment || "").includes("معمل الغاز")).length;
+  let refineryCount = data.filter(item => isActiveEmployee(item) && (item.Depatment || "").includes("المصفاة")).length;
+
+  let counts = {};
+  data.forEach(x => {
+    let code = (x.Code || "").trim();
+    if (code) counts[code] = (counts[code] || 0) + 1;
+  });
+
+  let html = `<div class="dashboard">`;
+
+  // البطاقة الرئيسية
+  html += `
+    <div class="stat" style="background:linear-gradient(135deg, #2c3e50, #34495e); grid-column: span 1;" onclick="showAllDetails()">
+      <div class="num">${totalActive}</div>
+      <div class="lbl">إجمالي القوى العاملة (النشطة)</div>
+    </div>`;
+
+  // بطاقات الأقسام (قابلة للنقر الآن)
+  html += `
+    <div class="stat" style="background:rgba(52,73,94,0.6)" onclick="showDepartmentDetails('معمل الغاز')">
+      <div class="num">${gasCount}</div>
+      <div class="lbl">معمل الغاز (اضغط للتفاصيل)</div>
+    </div>
+    <div class="stat" style="background:rgba(52,73,94,0.6)" onclick="showDepartmentDetails('الميثانول')">
+      <div class="num">${methanolCount}</div>
+      <div class="lbl">الميثانول (اضغط للتفاصيل)</div>
+    </div>
+    <div class="stat" style="background:rgba(52,73,94,0.6)" onclick="showDepartmentDetails('المصفاة')">
+      <div class="num">${refineryCount}</div>
+      <div class="lbl">المصفاة (اضغط للتفاصيل)</div>
+    </div>
+  `;
+
+  Object.keys(counts).sort().forEach(k => {
+    const color = STATUS_COLORS[k] || '#777';
+    html += `
+    <div class="stat" style="border:2px solid ${color}; background:rgba(0,0,0,0.25)" onclick="switchToStatus('${k}')">
+      <div class="num" style="color:${color}">${counts[k]}</div>
+      <div class="lbl">
+        <span class="status-dot" style="background:${color}"></span>
+        ${k}
+      </div>
+    </div>`;
+  });
+
+  return html + "</div>";
+}
+
+function showAllDetails() {
+  switchTab("ALL_DETAILS", null);
+}
+
+function switchToStatus(status) {
+  const tab = [...document.querySelectorAll(".tab")].find(el => el.textContent === status);
+  if (tab) switchTab(status, tab);
+}
+
+function renderCard(item) {
+  if (!item || !item.EmployeeID) return '';
+  const rows = [];
+  const code = (item.Code || "").trim();
+  const color = STATUS_COLORS[code] || '#777';
+
+  if (item.Name) rows.push(`<div class="row"><strong>الاسم:</strong> ${item.Name}</div>`);
+  if (item.EmployeeID) rows.push(`<div class="row"><strong>رقم التوظيف:</strong> ${String(item.EmployeeID)}</div>`);
+  if (item.Depatment) rows.push(`<div class="row"><strong>القسم:</strong> ${item.Depatment}</div>`);
+  rows.push(`<div class="row"><strong>الحالة:</strong> <span class="status-dot" style="background:${color}"></span> ${code || 'غير محدد'}</div>`);
+
+  if (item.Since) rows.push(`<div class="row"><strong>منذ:</strong> ${excelSerialToDDMMYYYY(item.Since)}</div>`);
+  if (item.To)    rows.push(`<div class="row"><strong>إلى:</strong> ${excelSerialToDDMMYYYY(item.To)}</div>`);
+  
+  if (code === "P" && item.Absent_Reason) rows.push(`<div class="row"><strong>سبب الغياب:</strong> ${item.Absent_Reason}</div>`);
+  if (code === "B" && item.Action) rows.push(`<div class="row"><strong>الإجراء:</strong> ${item.Action}</div>`);
+  if (code === "منقول" && item.Transfreedepartment) rows.push(`<div class="row"><strong>المنقول إليها:</strong> ${item.Transfreedepartment}</div>`);
+
+  if (item.TravelDate) rows.push(`<div class="row"><strong>تاريخ السفر:</strong> ${excelSerialToDDMMYYYY(item.TravelDate)}</div>`);
+  if (item.Duration) rows.push(`<div class="row"><strong>المدة:</strong> ${item.Duration}</div>`);
+  if (item.Remarks) rows.push(`<div class="row"><strong>ملاحظات:</strong> ${item.Remarks}</div>`);
+  if (item.SecondeeDdepartment) rows.push(`<div class="row"><strong>الجهة المنتدب إليها:</strong> ${item.SecondeeDdepartment}</div>`);
+  if (item.Retirementdate) rows.push(`<div class="row"><strong>تاريخ التقاعد:</strong> ${excelSerialToDDMMYYYY(item.Retirementdate)}</div>`);
+
+  return `<div class="card">${rows.join('')}</div>`;
+}
+
+function render() {
+  const content = document.getElementById("content");
+  if (currentTab === "القوى العاملة") {
+    content.innerHTML = renderDashboard();
+  } else {
+    const filtered = getFilteredData();
+    const title = currentTab === "DEPT_DETAILS" ? `<h3 style="text-align:center; margin-bottom:15px; color:#fff">قسم: ${currentDeptFilter}</h3>` : "";
+    content.innerHTML = title + `<div class="cards">${filtered.map(renderCard).join('')}</div>`;
+  }
+}
+
+// دالة مساعدة للحصول على الأعمدة النشطة فقط
+function getDynamicColumns(items) {
+  // تعريف كافة الأعمدة المحتملة
+  const allPotentialColumns = [
+    { header: "رقم التوظيف", key: "EmployeeID", isDate: false },
+    { header: "الاسم", key: "Name", isDate: false },
+    { header: "القسم", key: "Depatment", isDate: false },
+    { header: "الحالة", key: "Code", isDate: false },
+    { header: "منذ", key: "Since", isDate: true },
+    { header: "إلى", key: "To", isDate: true },
+    { header: "سبب الغياب", key: "Absent_Reason", isDate: false },
+    { header: "الإجراء", key: "Action", isDate: false },
+    { header: "المنقول إليها", key: "Transfreedepartment", isDate: false },
+    { header: "تاريخ السفر", key: "TravelDate", isDate: true },
+    { header: "المدة", key: "Duration", isDate: false },
+    { header: "ملاحظات", key: "Remarks", isDate: false },
+    { header: "جهة الانتداب", key: "SecondeeDdepartment", isDate: false },
+    { header: "تاريخ التقاعد", key: "Retirementdate", isDate: true }
+  ];
+
+  // فلترة الأعمدة: احتفظ بالعمود فقط إذا كان هناك سجل واحد على الأقل يحتوي على قيمة
+  // نستثني الأعمدة الأساسية (ID, Name, Dept, Code) نريدها دائماً تظهر
+  return allPotentialColumns.filter(col => {
+    if (["EmployeeID", "Name", "Depatment", "Code"].includes(col.key)) return true;
+    
+    return items.some(item => {
+      const val = item[col.key];
+      return val && String(val).trim() !== "";
+    });
+  });
+}
+
+function exportCurrentCSV() {
+  if (currentTab === "القوى العاملة") return alert("الرجاء اختيار حالة أو قسم للتصدير");
+  
+  const items = getFilteredData();
+  if (!items.length) return alert("لا توجد بيانات");
+
+  // استخدام الأعمدة الديناميكية
+  const activeCols = getDynamicColumns(items);
+  
+  let csv = activeCols.map(c => `"${c.header}"`).join(",") + "\n";
+  
+  items.forEach(item => {
+    const row = activeCols.map(col => {
+      let val = item[col.key] ?? "";
+      if (col.isDate && val) val = excelSerialToDDMMYYYY(val);
+      return `"${String(val).replace(/"/g,'""')}"`;
+    });
+    csv += row.join(",") + "\n";
+  });
+
+  const blob = new Blob([new Uint8Array([0xEF,0xBB,0xBF]), csv], {type: "text/csv;charset=utf-8;"});
+  const link = document.createElement("a");
+  link.href = URL.createObjectURL(blob);
+  
+  let filename = currentTab === "DEPT_DETAILS" ? currentDeptFilter : currentTab;
+  link.download = `بيانات_${filename}_${new Date().toISOString().slice(0,10)}.csv`;
+  link.click();
+}
+
+async function loadArabicFont(doc) {
+  const fontUrl = "https://raw.githubusercontent.com/google/fonts/main/ofl/amiri/Amiri-Regular.ttf";
+  const response = await fetch(fontUrl);
+  const buffer = await response.arrayBuffer();
+  const fontFileName = "Amiri-Regular.ttf";
+  doc.addFileToVFS(fontFileName, Buffer.from(buffer).toString("base64"));
+  doc.addFont(fontFileName, "Amiri", "normal");
+  return "Amiri";
+}
+
+if (!window.Buffer) {
+  window.Buffer = {
+    from: function(arrayBuffer) {
+      let binary = '';
+      const bytes = new Uint8Array(arrayBuffer);
+      const len = bytes.byteLength;
+      for (let i = 0; i < len; i++) {
+        binary += String.fromCharCode(bytes[i]);
+      }
+      return {
+        toString: function(type) {
+          if(type === 'base64') return window.btoa(binary);
+          return binary;
+        }
+      };
+    }
+  };
+}
+
+async function exportCurrentPDF() {
+  if (currentTab === "القوى العاملة") return alert("الرجاء اختيار حالة أو قسم للتصدير");
+
+  const items = getFilteredData();
+  if (!items.length) return alert("لا توجد بيانات");
+
+  const btn = document.getElementById("exportPdfBtn");
+  const oldText = btn.textContent;
+  btn.textContent = "جاري المعالجة...";
+  btn.disabled = true;
+
+  try {
+    const doc = new jsPDF();
+    await loadArabicFont(doc);
+    doc.setFont("Amiri", "normal");
+
+    // الحصول على الأعمدة النشطة فقط (إخفاء الفارغة)
+    const activeCols = getDynamicColumns(items);
+
+    // تحويل هيكل الأعمدة لما يناسب autoTable
+    const columns = activeCols.map(c => ({ header: c.header, dataKey: c.key }));
+
+    const body = items.map(item => {
+      let row = {};
+      activeCols.forEach(col => {
+        let val = item[col.key] || "";
+        if (col.isDate) val = excelSerialToDDMMYYYY(val);
+        row[col.key] = val;
+      });
+      return row;
+    });
+
+    let titleText = currentTab === "DEPT_DETAILS" ? `بيانات قسم: ${currentDeptFilter}` : `بيانات: ${currentTab}`;
+    if(currentTab === "ALL_DETAILS") titleText = "جميع البيانات";
+
+    doc.text(titleText, 200, 10, { align: 'right', isInputVisual: true });
+
+    doc.autoTable({
+      columns: columns,
+      body: body,
+      theme: 'grid',
+      styles: { 
+        font: 'Amiri', 
+        fontSize: 9, 
+        cellPadding: 2, 
+        overflow: 'linebreak', 
+        halign: 'right' 
+      },
+      headStyles: { 
+        fillColor: [0, 174, 255], 
+        textColor: [255,255,255], 
+        halign: 'center',
+        font: 'Amiri'
+      },
+      margin: { top: 15 }
+    });
+
+    let filename = currentTab === "DEPT_DETAILS" ? currentDeptFilter : currentTab;
+    doc.save(`بيانات_${filename}_${new Date().toISOString().slice(0,10)}.pdf`);
+    
+  } catch (err) {
+    console.error(err);
+    alert("خطأ في التصدير.");
+  } finally {
+    btn.textContent = oldText;
+    btn.disabled = false;
+  }
+}
+
+document.getElementById("searchInput").addEventListener("input", e => {
+  searchTerm = e.target.value;
+  render();
+});
+
+document.getElementById("exportCsvBtn").onclick = exportCurrentCSV;
+document.getElementById("exportPdfBtn").onclick = exportCurrentPDF;
+
+initTabs();
+render();
+</script>
+</body>
+</html>
