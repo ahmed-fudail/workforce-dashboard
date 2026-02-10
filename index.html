@@ -175,7 +175,7 @@
       display: flex;
       gap: 10px;
     }
-    .card .row strong { color: #b0d0ff; min-width: 140px; }
+    .card .row strong { color: #b0d0ff; min-width: 145px; }
 
     @media (max-width: 480px) {
       .dashboard { grid-template-columns: repeat(auto-fill, minmax(135px, 1fr)); }
@@ -236,6 +236,18 @@ const SPECIAL_FIELDS = {
 
 let currentTab = "القوى العاملة";
 let searchTerm = "";
+
+// دالة لجلب القيمة بغض النظر عن حالة الأحرف (كبيرة/صغيرة)
+function getValueSafe(item, key) {
+    if (!item || !key) return "";
+    // المحاولة الأولى: التطابق التام
+    if (item[key] !== undefined && item[key] !== null) return item[key];
+    
+    // المحاولة الثانية: البحث بدون حساسية لحالة الأحرف
+    const lowerKey = key.toLowerCase();
+    const foundKey = Object.keys(item).find(k => k.toLowerCase() === lowerKey);
+    return foundKey ? item[foundKey] : "";
+}
 
 function formatSPDate(val) {
   if (!val || String(val).trim() === "" || val === "null" || val === "NULL") return "";
@@ -350,6 +362,7 @@ function renderCard(item) {
   const code = (item.Code || "").trim();
   const color = STATUS_COLORS[code] || '#777';
 
+  // البيانات الأساسية
   rows.push(`<div class="row"><strong>الاسم:</strong> ${item.Name}</div>`);
   rows.push(`<div class="row"><strong>رقم التوظيف:</strong> ${String(item.EmployeeID)}</div>`);
   rows.push(`<div class="row"><strong>القسم:</strong> ${item.Depatment || ''}</div>`);
@@ -357,15 +370,34 @@ function renderCard(item) {
 
   if (item.Since) rows.push(`<div class="row"><strong>منذ:</strong> ${formatSPDate(item.Since)}</div>`);
   
+  // منطق حقل "إلى"
   const toVal = getToFieldStatus(item.Since, item.To, code);
   if (toVal) rows.push(`<div class="row"><strong>إلى:</strong> ${toVal}</div>`);
 
-  // إضافة الحقول الخاصة بناءً على الحالة
-  if (code === "P" && item.Absent_Reason) rows.push(`<div class="row"><strong>سبب الغياب:</strong> ${item.Absent_Reason}</div>`);
-  if (code === "B" && item.Action) rows.push(`<div class="row"><strong>الإجراء:</strong> ${item.Action}</div>`);
-  if (code === "منقول" && item.Transfreedepartment) rows.push(`<div class="row"><strong>المنقول إليها:</strong> ${item.Transfreedepartment}</div>`);
-  if (code === "منتدب" && item.SecondeeDdepartment) rows.push(`<div class="row"><strong>الجهة المنتدب إليها:</strong> ${item.SecondeeDdepartment}</div>`);
+  // المنطق الموحد لإظهار الحقول الخاصة بناءً على الحالة الحالية للعنصر
+  // نستخدم getValueSafe لضمان جلب البيانات حتى لو اختلفت الأحرف الكبيرة والصغيرة
+  
+  if (code === "P") {
+      const val = getValueSafe(item, SPECIAL_FIELDS["P"].key);
+      if (val) rows.push(`<div class="row"><strong>${SPECIAL_FIELDS["P"].label}:</strong> ${val}</div>`);
+  }
+  
+  if (code === "B") {
+      const val = getValueSafe(item, SPECIAL_FIELDS["B"].key);
+      if (val) rows.push(`<div class="row"><strong>${SPECIAL_FIELDS["B"].label}:</strong> ${val}</div>`);
+  }
 
+  if (code === "منقول") {
+      const val = getValueSafe(item, SPECIAL_FIELDS["منقول"].key);
+      if (val) rows.push(`<div class="row"><strong>${SPECIAL_FIELDS["منقول"].label}:</strong> ${val}</div>`);
+  }
+
+  if (code === "منتدب") {
+      const val = getValueSafe(item, SPECIAL_FIELDS["منتدب"].key);
+      if (val) rows.push(`<div class="row"><strong>${SPECIAL_FIELDS["منتدب"].label}:</strong> ${val}</div>`);
+  }
+
+  // باقي الحقول العامة
   if (item.TravelDate) rows.push(`<div class="row"><strong>تاريخ السفر:</strong> ${formatSPDate(item.TravelDate)}</div>`);
   if (item.Duration) rows.push(`<div class="row"><strong>المدة:</strong> ${item.Duration}</div>`);
   if (item.Remarks) rows.push(`<div class="row"><strong>ملاحظات:</strong> ${item.Remarks}</div>`);
@@ -384,9 +416,8 @@ function render() {
   }
 }
 
-// دالة لتحديد الأعمدة المطلوبة للتصدير بناءً على التبويب
+// بناء أعمدة التصدير
 function getExportColumns() {
-    // الأعمدة الأساسية
     let columns = [
         { key: "EmployeeID", header: "رقم التوظيف" },
         { key: "Name", header: "الاسم" },
@@ -395,17 +426,15 @@ function getExportColumns() {
         { key: "Since", header: "منذ" }
     ];
 
-    // إضافة حقل "إلى" إذا لم يكن مخفياً لهذه الحالة
     if (!HIDE_TO_STATUSES.includes(currentTab)) {
         columns.push({ key: "To", header: "إلى" });
     }
 
-    // إضافة الحقل الخاص إذا وجد لهذا التبويب
+    // إضافة الحقل الخاص بالتبويب الحالي إجبارياً
     if (SPECIAL_FIELDS[currentTab]) {
         columns.push({ key: SPECIAL_FIELDS[currentTab].key, header: SPECIAL_FIELDS[currentTab].label });
     }
 
-    // إضافة باقي الأعمدة العامة
     columns.push({ key: "TravelDate", header: "تاريخ السفر" });
     columns.push({ key: "Duration", header: "المدة" });
     columns.push({ key: "Remarks", header: "ملاحظات" });
@@ -414,11 +443,21 @@ function getExportColumns() {
     return columns;
 }
 
-// تنظيف الأعمدة الفارغة تماماً من البيانات
+// تنظيف الأعمدة الفارغة (مع الحفاظ على الحقول الخاصة إذا كان التبويب مفعلاً)
 function cleanEmptyColumns(columns, items) {
     return columns.filter(col => {
+        // إذا كان العمود هو الحقل الخاص بالتبويب الحالي، نسمح بظهوره دائماً أو نتحقق بمرونة
+        if (SPECIAL_FIELDS[currentTab] && col.key === SPECIAL_FIELDS[currentTab].key) {
+            // نتحقق إذا كان هناك أي قيمة في هذا العمود (باستخدام البحث الآمن)
+            return items.some(item => {
+                const val = getValueSafe(item, col.key);
+                return val && String(val).trim() !== "" && val !== "null";
+            });
+        }
+        
+        // التحقق العادي لباقي الأعمدة
         return items.some(item => {
-            let val = item[col.key];
+            let val = getValueSafe(item, col.key); 
             if (col.key === "To") val = getToFieldStatus(item.Since, item.To, item.Code);
             return val && String(val).trim() !== "" && val !== "null";
         });
@@ -431,16 +470,17 @@ function exportCurrentCSV() {
   if (!items.length) return alert("لا توجد بيانات");
 
   let columns = getExportColumns();
-  // تنظيف الأعمدة الفارغة لعدم عرض أعمدة بيضاء
   columns = cleanEmptyColumns(columns, items);
 
   let csv = columns.map(c => `"${c.header}"`).join(",") + "\n";
   items.forEach(item => {
     const row = columns.map(col => {
-      let val = item[col.key] ?? "";
+      let val = getValueSafe(item, col.key); // استخدام البحث الآمن
+      
       if (col.key === "Since") val = formatSPDate(val);
       if (col.key === "To") val = getToFieldStatus(item.Since, item.To, item.Code).replace(/<[^>]*>/g, '');
       if (["TravelDate","Retirementdate"].includes(col.key)) val = formatSPDate(val);
+      
       return `"${String(val).replace(/"/g,'""')}"`;
     });
     csv += row.join(",") + "\n";
@@ -487,27 +527,28 @@ async function exportCurrentPDF() {
     doc.setFont("Amiri", "normal");
 
     let columns = getExportColumns();
-    // استخدام dataKey ليتوافق مع مكتبة autotable
-    columns = columns.map(c => ({ header: c.header, dataKey: c.key }));
+    // تصفية الأعمدة الفارغة
+    columns = cleanEmptyColumns(columns, items);
     
-    // تنظيف الأعمدة الفارغة
-    columns = cleanEmptyColumns(columns.map(c => ({ key: c.dataKey, header: c.header })), items)
-              .map(c => ({ header: c.header, dataKey: c.key }));
+    // تحويل الأعمدة لنسق AutoTable
+    const tableColumns = columns.map(c => ({ header: c.header, dataKey: c.key }));
 
     const body = items.map(item => {
       let row = {};
       columns.forEach(col => {
-        let val = item[col.dataKey] || "";
-        if (col.dataKey === "Since") val = formatSPDate(val);
-        if (col.dataKey === "To") val = getToFieldStatus(item.Since, item.To, item.Code).replace(/<[^>]*>/g, '');
-        if (["TravelDate", "Retirementdate"].includes(col.dataKey)) val = formatSPDate(val);
-        row[col.dataKey] = val;
+        let val = getValueSafe(item, col.key); // استخدام البحث الآمن
+        
+        if (col.key === "Since") val = formatSPDate(val);
+        if (col.key === "To") val = getToFieldStatus(item.Since, item.To, item.Code).replace(/<[^>]*>/g, '');
+        if (["TravelDate", "Retirementdate"].includes(col.key)) val = formatSPDate(val);
+        
+        row[col.key] = val;
       });
       return row;
     });
 
     doc.autoTable({
-      columns: columns,
+      columns: tableColumns,
       body: body,
       theme: 'grid',
       styles: { font: 'Amiri', fontSize: 9, halign: 'right' },
