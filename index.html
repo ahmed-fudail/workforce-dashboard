@@ -175,7 +175,7 @@
       display: flex;
       gap: 10px;
     }
-    .card .row strong { color: #b0d0ff; min-width: 130px; }
+    .card .row strong { color: #b0d0ff; min-width: 140px; }
 
     @media (max-width: 480px) {
       .dashboard { grid-template-columns: repeat(auto-fill, minmax(135px, 1fr)); }
@@ -226,6 +226,14 @@ const STATUS_COLORS = {
   "مستقيل": "#7f8c8d"
 };
 
+// تعريف الحقول الخاصة لكل تبويب
+const SPECIAL_FIELDS = {
+    "P": { key: "Absent_Reason", label: "سبب الغياب" },
+    "B": { key: "Action", label: "الإجراء" },
+    "منقول": { key: "Transfreedepartment", label: "المنقول إليها" },
+    "منتدب": { key: "SecondeeDdepartment", label: "الجهة المنتدب إليها" }
+};
+
 let currentTab = "القوى العاملة";
 let searchTerm = "";
 
@@ -242,7 +250,7 @@ function formatSPDate(val) {
 
 function getToFieldStatus(sinceVal, toVal, currentCode) {
   const code = (currentCode || "").trim();
-  if (HIDE_TO_STATUSES.includes(code)) return ""; // حذف الحقل لهذه الحالات
+  if (HIDE_TO_STATUSES.includes(code)) return ""; 
   
   const formattedSince = formatSPDate(sinceVal);
   const formattedTo = formatSPDate(toVal);
@@ -352,13 +360,15 @@ function renderCard(item) {
   const toVal = getToFieldStatus(item.Since, item.To, code);
   if (toVal) rows.push(`<div class="row"><strong>إلى:</strong> ${toVal}</div>`);
 
+  // إضافة الحقول الخاصة بناءً على الحالة
   if (code === "P" && item.Absent_Reason) rows.push(`<div class="row"><strong>سبب الغياب:</strong> ${item.Absent_Reason}</div>`);
   if (code === "B" && item.Action) rows.push(`<div class="row"><strong>الإجراء:</strong> ${item.Action}</div>`);
   if (code === "منقول" && item.Transfreedepartment) rows.push(`<div class="row"><strong>المنقول إليها:</strong> ${item.Transfreedepartment}</div>`);
+  if (code === "منتدب" && item.SecondeeDdepartment) rows.push(`<div class="row"><strong>الجهة المنتدب إليها:</strong> ${item.SecondeeDdepartment}</div>`);
+
   if (item.TravelDate) rows.push(`<div class="row"><strong>تاريخ السفر:</strong> ${formatSPDate(item.TravelDate)}</div>`);
   if (item.Duration) rows.push(`<div class="row"><strong>المدة:</strong> ${item.Duration}</div>`);
   if (item.Remarks) rows.push(`<div class="row"><strong>ملاحظات:</strong> ${item.Remarks}</div>`);
-  if (item.SecondeeDdepartment) rows.push(`<div class="row"><strong>الجهة المنتدب إليها:</strong> ${item.SecondeeDdepartment}</div>`);
   if (item.Retirementdate) rows.push(`<div class="row"><strong>تاريخ التقاعد:</strong> ${formatSPDate(item.Retirementdate)}</div>`);
 
   return `<div class="card">${rows.join('')}</div>`;
@@ -374,12 +384,42 @@ function render() {
   }
 }
 
-// دالة فحص الأعمدة التي تحتوي على قيم فقط
-function getActiveHeaders(items, allPossibleHeaders) {
-    return allPossibleHeaders.filter(h => {
+// دالة لتحديد الأعمدة المطلوبة للتصدير بناءً على التبويب
+function getExportColumns() {
+    // الأعمدة الأساسية
+    let columns = [
+        { key: "EmployeeID", header: "رقم التوظيف" },
+        { key: "Name", header: "الاسم" },
+        { key: "Depatment", header: "القسم" },
+        { key: "Code", header: "الحالة" },
+        { key: "Since", header: "منذ" }
+    ];
+
+    // إضافة حقل "إلى" إذا لم يكن مخفياً لهذه الحالة
+    if (!HIDE_TO_STATUSES.includes(currentTab)) {
+        columns.push({ key: "To", header: "إلى" });
+    }
+
+    // إضافة الحقل الخاص إذا وجد لهذا التبويب
+    if (SPECIAL_FIELDS[currentTab]) {
+        columns.push({ key: SPECIAL_FIELDS[currentTab].key, header: SPECIAL_FIELDS[currentTab].label });
+    }
+
+    // إضافة باقي الأعمدة العامة
+    columns.push({ key: "TravelDate", header: "تاريخ السفر" });
+    columns.push({ key: "Duration", header: "المدة" });
+    columns.push({ key: "Remarks", header: "ملاحظات" });
+    columns.push({ key: "Retirementdate", header: "تاريخ التقاعد" });
+
+    return columns;
+}
+
+// تنظيف الأعمدة الفارغة تماماً من البيانات
+function cleanEmptyColumns(columns, items) {
+    return columns.filter(col => {
         return items.some(item => {
-            let val = item[h];
-            if (h === "To") val = getToFieldStatus(item.Since, item.To, item.Code);
+            let val = item[col.key];
+            if (col.key === "To") val = getToFieldStatus(item.Since, item.To, item.Code);
             return val && String(val).trim() !== "" && val !== "null";
         });
     });
@@ -390,16 +430,17 @@ function exportCurrentCSV() {
   const items = getFilteredData();
   if (!items.length) return alert("لا توجد بيانات");
 
-  const allPossible = ["EmployeeID", "Name", "Depatment", "Code", "Since", "To", "Absent_Reason", "Action", "Transfreedepartment", "TravelDate", "Duration", "Remarks", "SecondeeDdepartment", "Retirementdate"];
-  const activeHeaders = getActiveHeaders(items, allPossible);
+  let columns = getExportColumns();
+  // تنظيف الأعمدة الفارغة لعدم عرض أعمدة بيضاء
+  columns = cleanEmptyColumns(columns, items);
 
-  let csv = activeHeaders.map(h => `"${h}"`).join(",") + "\n";
+  let csv = columns.map(c => `"${c.header}"`).join(",") + "\n";
   items.forEach(item => {
-    const row = activeHeaders.map(h => {
-      let val = item[h] ?? "";
-      if (h === "Since") val = formatSPDate(val);
-      if (h === "To") val = getToFieldStatus(item.Since, item.To, item.Code).replace(/<[^>]*>/g, '');
-      if (["TravelDate","Retirementdate"].includes(h)) val = formatSPDate(val);
+    const row = columns.map(col => {
+      let val = item[col.key] ?? "";
+      if (col.key === "Since") val = formatSPDate(val);
+      if (col.key === "To") val = getToFieldStatus(item.Since, item.To, item.Code).replace(/<[^>]*>/g, '');
+      if (["TravelDate","Retirementdate"].includes(col.key)) val = formatSPDate(val);
       return `"${String(val).replace(/"/g,'""')}"`;
     });
     csv += row.join(",") + "\n";
@@ -445,25 +486,22 @@ async function exportCurrentPDF() {
     await loadArabicFont(doc);
     doc.setFont("Amiri", "normal");
 
-    const headerMap = {
-        "EmployeeID": "رقم التوظيف", "Name": "الاسم", "Depatment": "القسم", "Code": "الحالة",
-        "Since": "منذ", "To": "إلى", "Absent_Reason": "السبب", "Action": "الإجراء",
-        "Transfreedepartment": "الجهة المنقول إليها", "TravelDate": "تاريخ السفر",
-        "Duration": "المدة", "Remarks": "ملاحظات", "SecondeeDdepartment": "الجهة المنتدب إليها",
-        "Retirementdate": "تاريخ التقاعد"
-    };
-
-    const activeKeys = getActiveHeaders(items, Object.keys(headerMap));
-    const columns = activeKeys.map(k => ({ header: headerMap[k], dataKey: k }));
+    let columns = getExportColumns();
+    // استخدام dataKey ليتوافق مع مكتبة autotable
+    columns = columns.map(c => ({ header: c.header, dataKey: c.key }));
+    
+    // تنظيف الأعمدة الفارغة
+    columns = cleanEmptyColumns(columns.map(c => ({ key: c.dataKey, header: c.header })), items)
+              .map(c => ({ header: c.header, dataKey: c.key }));
 
     const body = items.map(item => {
       let row = {};
-      activeKeys.forEach(k => {
-        let val = item[k] || "";
-        if (k === "Since") val = formatSPDate(val);
-        if (k === "To") val = getToFieldStatus(item.Since, item.To, item.Code).replace(/<[^>]*>/g, '');
-        if (["TravelDate", "Retirementdate"].includes(k)) val = formatSPDate(val);
-        row[k] = val;
+      columns.forEach(col => {
+        let val = item[col.dataKey] || "";
+        if (col.dataKey === "Since") val = formatSPDate(val);
+        if (col.dataKey === "To") val = getToFieldStatus(item.Since, item.To, item.Code).replace(/<[^>]*>/g, '');
+        if (["TravelDate", "Retirementdate"].includes(col.dataKey)) val = formatSPDate(val);
+        row[col.dataKey] = val;
       });
       return row;
     });
@@ -480,6 +518,7 @@ async function exportCurrentPDF() {
     doc.save(`تقرير_${currentTab}.pdf`);
   } catch (err) {
     alert("حدث خطأ أثناء إنشاء PDF");
+    console.error(err);
   } finally {
     btn.textContent = "تصدير PDF";
     btn.disabled = false;
