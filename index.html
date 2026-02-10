@@ -126,9 +126,7 @@
       font-weight: 700;
     }
 
-    .tab.all-tab {
-      background: linear-gradient(135deg, #2c3e50, #34495e);
-    }
+    .tab.all-tab { background: linear-gradient(135deg, #2c3e50, #34495e); }
 
     .dashboard {
       display: grid;
@@ -211,6 +209,7 @@ const rawData = [{"EmployeeID":"12220","Name":"مروان محمد حسن","Depa
 const data = rawData.body || rawData || [];
 
 const EXCLUDED_STATUSES = ["مستقيل", "متقاعد", "منقول", "مفصول"];
+const HIDE_TO_STATUSES = ["منقول", "مستقيل", "مفصول"];
 
 const STATUS_COLORS = {
   "متواجد في العمل": "#1abc9c",
@@ -230,29 +229,21 @@ const STATUS_COLORS = {
 let currentTab = "القوى العاملة";
 let searchTerm = "";
 
-// دالة تنسيق التاريخ الجديدة لمعالجة SharePoint ISO Date
 function formatSPDate(val) {
   if (!val || String(val).trim() === "" || val === "null" || val === "NULL") return "";
-  
-  // إذا كانت القيمة نصية وتحتوي على T (تنسيق SharePoint)
   let dateStr = String(val);
-  if (dateStr.includes('T')) {
-    dateStr = dateStr.split('T')[0];
-  }
-  
-  // التحقق من صحة التنسيق YYYY-MM-DD
+  if (dateStr.includes('T')) dateStr = dateStr.split('T')[0];
   if (dateStr.includes('-')) {
     const parts = dateStr.split('-');
-    if (parts.length === 3) {
-      // إرجاع التنسيق المطلوب DD-MM-YYYY
-      return `${parts[2]}-${parts[1]}-${parts[0]}`;
-    }
+    if (parts.length === 3) return `${parts[2]}-${parts[1]}-${parts[0]}`;
   }
-  return val; // إرجاع القيمة كما هي إذا لم تكن تاريخاً
+  return val;
 }
 
-// دالة معالجة حالة "إلى" مع شرط "مستمر"
-function getToFieldStatus(sinceVal, toVal) {
+function getToFieldStatus(sinceVal, toVal, currentCode) {
+  const code = (currentCode || "").trim();
+  if (HIDE_TO_STATUSES.includes(code)) return ""; // حذف الحقل لهذه الحالات
+  
   const formattedSince = formatSPDate(sinceVal);
   const formattedTo = formatSPDate(toVal);
 
@@ -274,12 +265,7 @@ function initTabs() {
 function switchTab(value, elem) {
   currentTab = value;
   document.querySelectorAll(".tab").forEach(el => el.classList.remove("active"));
-  if (elem) {
-    elem.classList.add("active");
-  } else if (value === "ALL_DETAILS") {
-    const allTab = document.querySelector(".tab.all-tab");
-    if(allTab) allTab.classList.add("active");
-  }
+  if (elem) elem.classList.add("active");
   render();
 }
 
@@ -317,7 +303,7 @@ function renderDashboard() {
 
   let html = `<div class="dashboard">`;
   html += `
-    <div class="stat" style="background:linear-gradient(135deg, #2c3e50, #34495e); grid-column: span 1;" onclick="showAllDetails()">
+    <div class="stat" style="background:linear-gradient(135deg, #2c3e50, #34495e); grid-column: span 1;" onclick="switchTab('ALL_DETAILS', null)">
       <div class="num">${totalActive}</div>
       <div class="lbl">إجمالي القوى العاملة (النشطة)</div>
     </div>
@@ -345,10 +331,6 @@ function renderDashboard() {
   return html + "</div>";
 }
 
-function showAllDetails() {
-  switchTab("ALL_DETAILS", null);
-}
-
 function switchToStatus(status) {
   const tab = [...document.querySelectorAll(".tab")].find(el => el.textContent === status);
   if (tab) switchTab(status, tab);
@@ -365,19 +347,14 @@ function renderCard(item) {
   rows.push(`<div class="row"><strong>القسم:</strong> ${item.Depatment || ''}</div>`);
   rows.push(`<div class="row"><strong>الحالة:</strong> <span class="status-dot" style="background:${color}"></span> ${code || 'غير محدد'}</div>`);
 
-  // عرض "منذ" دائماً إذا وجدت
   if (item.Since) rows.push(`<div class="row"><strong>منذ:</strong> ${formatSPDate(item.Since)}</div>`);
   
-  // شرط خاص لتبويب "منقول" والتعامل مع "مستمر"
-  if (code !== "منقول") {
-      const toValue = getToFieldStatus(item.Since, item.To);
-      if (toValue) rows.push(`<div class="row"><strong>إلى:</strong> ${toValue}</div>`);
-  }
+  const toVal = getToFieldStatus(item.Since, item.To, code);
+  if (toVal) rows.push(`<div class="row"><strong>إلى:</strong> ${toVal}</div>`);
 
   if (code === "P" && item.Absent_Reason) rows.push(`<div class="row"><strong>سبب الغياب:</strong> ${item.Absent_Reason}</div>`);
   if (code === "B" && item.Action) rows.push(`<div class="row"><strong>الإجراء:</strong> ${item.Action}</div>`);
   if (code === "منقول" && item.Transfreedepartment) rows.push(`<div class="row"><strong>المنقول إليها:</strong> ${item.Transfreedepartment}</div>`);
-
   if (item.TravelDate) rows.push(`<div class="row"><strong>تاريخ السفر:</strong> ${formatSPDate(item.TravelDate)}</div>`);
   if (item.Duration) rows.push(`<div class="row"><strong>المدة:</strong> ${item.Duration}</div>`);
   if (item.Remarks) rows.push(`<div class="row"><strong>ملاحظات:</strong> ${item.Remarks}</div>`);
@@ -397,25 +374,32 @@ function render() {
   }
 }
 
+// دالة فحص الأعمدة التي تحتوي على قيم فقط
+function getActiveHeaders(items, allPossibleHeaders) {
+    return allPossibleHeaders.filter(h => {
+        return items.some(item => {
+            let val = item[h];
+            if (h === "To") val = getToFieldStatus(item.Since, item.To, item.Code);
+            return val && String(val).trim() !== "" && val !== "null";
+        });
+    });
+}
+
 function exportCurrentCSV() {
-  if (currentTab === "القوى العاملة") return alert("الرجاء اختيار حالة أو عرض الكل للتصدير");
+  if (currentTab === "القوى العاملة") return alert("الرجاء اختيار حالة للتصدير");
   const items = getFilteredData();
   if (!items.length) return alert("لا توجد بيانات");
 
-  const headers = ["EmployeeID", "Name", "Depatment", "Code", "Since", "To", "Remarks"];
-  let csv = headers.map(h => `"${h}"`).join(",") + "\n";
+  const allPossible = ["EmployeeID", "Name", "Depatment", "Code", "Since", "To", "Absent_Reason", "Action", "Transfreedepartment", "TravelDate", "Duration", "Remarks", "SecondeeDdepartment", "Retirementdate"];
+  const activeHeaders = getActiveHeaders(items, allPossible);
+
+  let csv = activeHeaders.map(h => `"${h}"`).join(",") + "\n";
   items.forEach(item => {
-    const row = headers.map(h => {
+    const row = activeHeaders.map(h => {
       let val = item[h] ?? "";
       if (h === "Since") val = formatSPDate(val);
-      if (h === "To") {
-          // منطق التصدير يتبع منطق العرض
-          if ((item.Code || "").trim() === "منقول") val = "";
-          else {
-              val = getToFieldStatus(item.Since, item.To).replace('<span class="status-ongoing">','').replace('</span>','');
-          }
-      }
-      if (["TravelDate","Retirementdate"].includes(h) && val) val = formatSPDate(val);
+      if (h === "To") val = getToFieldStatus(item.Since, item.To, item.Code).replace(/<[^>]*>/g, '');
+      if (["TravelDate","Retirementdate"].includes(h)) val = formatSPDate(val);
       return `"${String(val).replace(/"/g,'""')}"`;
     });
     csv += row.join(",") + "\n";
@@ -423,7 +407,7 @@ function exportCurrentCSV() {
   const blob = new Blob([new Uint8Array([0xEF,0xBB,0xBF]), csv], {type: "text/csv;charset=utf-8;"});
   const link = document.createElement("a");
   link.href = URL.createObjectURL(blob);
-  link.download = `بيانات_${currentTab}_${new Date().toISOString().slice(0,10)}.csv`;
+  link.download = `بيانات_${currentTab}.csv`;
   link.click();
 }
 
@@ -449,7 +433,7 @@ if (!window.Buffer) {
 }
 
 async function exportCurrentPDF() {
-  if (currentTab === "القوى العاملة") return alert("الرجاء اختيار حالة أو عرض الكل للتصدير");
+  if (currentTab === "القوى العاملة") return alert("الرجاء اختيار حالة للتصدير");
   const items = getFilteredData();
   if (!items.length) return alert("لا توجد بيانات");
   const btn = document.getElementById("exportPdfBtn");
@@ -457,29 +441,29 @@ async function exportCurrentPDF() {
   btn.disabled = true;
 
   try {
-    const doc = new jsPDF();
+    const doc = new jsPDF({ orientation: "landscape" });
     await loadArabicFont(doc);
     doc.setFont("Amiri", "normal");
 
-    let columns = [
-      { header: "رقم التوظيف", dataKey: "EmployeeID" },
-      { header: "الاسم", dataKey: "Name" },
-      { header: "القسم", dataKey: "Depatment" },
-      { header: "منذ", dataKey: "Since" }
-    ];
+    const headerMap = {
+        "EmployeeID": "رقم التوظيف", "Name": "الاسم", "Depatment": "القسم", "Code": "الحالة",
+        "Since": "منذ", "To": "إلى", "Absent_Reason": "السبب", "Action": "الإجراء",
+        "Transfreedepartment": "الجهة المنقول إليها", "TravelDate": "تاريخ السفر",
+        "Duration": "المدة", "Remarks": "ملاحظات", "SecondeeDdepartment": "الجهة المنتدب إليها",
+        "Retirementdate": "تاريخ التقاعد"
+    };
 
-    if (currentTab !== "منقول") columns.push({ header: "إلى", dataKey: "To" });
-    columns.push({ header: "الحالة", dataKey: "Code" });
+    const activeKeys = getActiveHeaders(items, Object.keys(headerMap));
+    const columns = activeKeys.map(k => ({ header: headerMap[k], dataKey: k }));
 
     const body = items.map(item => {
       let row = {};
-      columns.forEach(col => {
-        let val = item[col.dataKey] || "";
-        if (col.dataKey === "Since") val = formatSPDate(val);
-        if (col.dataKey === "To") {
-           val = getToFieldStatus(item.Since, item.To).replace('<span class="status-ongoing">','').replace('</span>','');
-        }
-        row[col.dataKey] = val;
+      activeKeys.forEach(k => {
+        let val = item[k] || "";
+        if (k === "Since") val = formatSPDate(val);
+        if (k === "To") val = getToFieldStatus(item.Since, item.To, item.Code).replace(/<[^>]*>/g, '');
+        if (["TravelDate", "Retirementdate"].includes(k)) val = formatSPDate(val);
+        row[k] = val;
       });
       return row;
     });
@@ -488,12 +472,12 @@ async function exportCurrentPDF() {
       columns: columns,
       body: body,
       theme: 'grid',
-      styles: { font: 'Amiri', fontSize: 10, halign: 'right' },
+      styles: { font: 'Amiri', fontSize: 9, halign: 'right' },
       headStyles: { fillColor: [0, 174, 255], textColor: [255,255,255], halign: 'center', font: 'Amiri' },
       margin: { top: 15 }
     });
 
-    doc.save(`بيانات_${currentTab}.pdf`);
+    doc.save(`تقرير_${currentTab}.pdf`);
   } catch (err) {
     alert("حدث خطأ أثناء إنشاء PDF");
   } finally {
