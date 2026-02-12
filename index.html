@@ -210,10 +210,12 @@ const rawData = [{"EmployeeID":"12220","Name":"مروان محمد حسن","Depa
 const data = rawData.body || rawData || [];
 
 // ثوابت الحالة
+// سيتم استبعاد هؤلاء من الإجمالي النشط
 const EXCLUDED_STATUSES = ["مستقيل", "متقاعد", "منقول", "مفصول"];
 const HIDE_TO_STATUSES = ["منقول", "مستقيل", "مفصول"];
 const DEPARTMENTS_LIST = ["معمل الغاز", "الميثانول", "المصفاة"];
 
+// تعريف الألوان بما فيها مدير ومراقب
 const STATUS_COLORS = {
   "متواجد في العمل": "#1abc9c",
   "منقول": "#e74c3c",
@@ -227,8 +229,8 @@ const STATUS_COLORS = {
   "فى إدارة الصيانة": "#16a085",
   "مفصول": "#c0392b",
   "مستقيل": "#7f8c8d",
-  "مراقب": "#34495e", // تم إضافة اللون
-  "مدير": "#2c3e50"   // تم إضافة اللون
+  "مدير": "#E91E63",    // لون وردي/بنفسجي مميز
+  "مراقب": "#3F51B5"    // لون نيلي مميز
 };
 
 // خريطة الحقول الخاصة لربط الكود بالحقل المطلوب واسمه العربي
@@ -238,7 +240,7 @@ const SPECIAL_FIELDS_MAP = {
     "منقول": { key: "Transfreedepartment", label: "المنقول إليها" }
 };
 
-let currentTab = "القوى العاملة";
+let currentTab = "القوى العاملة"; // التبويب الافتراضي (الداشبورد)
 let searchTerm = "";
 
 // دالة تنسيق التاريخ
@@ -284,45 +286,57 @@ function switchTab(value, elem) {
   // إزالة التنشيط من جميع التبويبات
   document.querySelectorAll(".tab").forEach(el => el.classList.remove("active"));
   
-  // إذا تم الضغط على زر في شريط التبويبات
+  // إذا تم الضغط على زر فعلي في الشريط
   if (elem) {
     elem.classList.add("active");
-  } 
+  } else {
+    // حالة النقر على عنصر من الداشبورد (مثل زر إجمالي القوى العاملة)
+    // يمكننا تفعيل "القوى العاملة" شكلياً أو تركها بدون تفعيل للدلالة على عرض مخصص
+  }
   
   render();
 }
 
-// التحقق من أن الموظف نشط
+// التحقق من أن الموظف نشط (لا ينتمي للمستبعدين)
 function isActiveEmployee(item) {
   const code = (item.Code || "").trim();
-  // مراقب ومدير سيتم اعتبارهم نشطين تلقائياً لأنهم ليسوا في قائمة الاستبعاد
   return code && !EXCLUDED_STATUSES.includes(code);
 }
 
-// تصفية البيانات حسب التبويب المختار
+// دالة الفلترة الرئيسية (القلب النابض للكود)
 function getFilteredData() {
   let filtered = data.filter(item => item && item.EmployeeID && item.Name);
 
-  if (currentTab === "القوى العاملة") {
-      // في حالة القوى العاملة:
-      // إذا كان هناك بحث، لا نطبق أي فلتر على الحالة (بحث شامل في كل الداتا)
-      // إذا لم يكن هناك بحث، عادة لا يتم استدعاء هذه الدالة إلا للتصدير، وهنا سنصدر النشطين فقط
-      if (!searchTerm.trim()) {
-          filtered = filtered.filter(item => isActiveEmployee(item));
-      }
-      // إذا كان هناك بحث، نترك filtered كما هي (تحتوي على كل البيانات) ليتم البحث فيها
+  // 1. حالة النقر على بطاقة "إجمالي القوى العاملة" في الداشبورد
+  if (currentTab === "ALL_DETAILS") {
+      filtered = filtered.filter(item => isActiveEmployee(item));
   }
-  // إذا كان التبويب أحد الأقسام (معمل الغاز، الميثانول، المصفاة)
+  // 2. حالة التواجد في تبويب "القوى العاملة" (الصفحة الرئيسية)
+  else if (currentTab === "القوى العاملة") {
+      // إذا كان هناك بحث، نريد البحث في *كل شيء*، لذا لا نفلتر هنا
+      // إذا لم يكن هناك بحث، هذه الدالة تستخدم للتصدير، لذا نصدر النشطين فقط
+      if (!searchTerm.trim()) {
+         filtered = filtered.filter(item => isActiveEmployee(item));
+      }
+      // ملاحظة: عند العرض (render)، إذا لم يكن هناك بحث، نعرض الداشبورد وليس القائمة
+  }
+  // 3. حالة تبويب الأقسام (معمل الغاز، الميثانول، إلخ)
   else if (DEPARTMENTS_LIST.includes(currentTab)) {
-      // فلترة بالقسم + الموظفين النشطين فقط
       filtered = filtered.filter(x => (x.Depatment || "").includes(currentTab) && isActiveEmployee(x));
   }
-  // إذا كان تبويب حالة محددة
+  // 4. حالة تبويب "متواجد في العمل" (يشمل المدير والمراقب)
+  else if (currentTab === "متواجد في العمل") {
+      filtered = filtered.filter(x => {
+          const c = (x.Code || "").trim();
+          return c === "متواجد في العمل" || c === "مدير" || c === "مراقب";
+      });
+  }
+  // 5. باقي التبويبات (الحالات المحددة مثل B, P, منقول...)
   else {
       filtered = filtered.filter(x => (x.Code || "").trim() === currentTab);
   }
 
-  // فلترة البحث (مشتركة للكل)
+  // 6. تطبيق البحث (على النتائج المصفاة أعلاه)
   if (searchTerm.trim()) {
     const term = searchTerm.trim().toLowerCase();
     filtered = filtered.filter(x => 
@@ -330,12 +344,13 @@ function getFilteredData() {
       String(x.EmployeeID || "").includes(term)
     );
   }
+
   return filtered;
 }
 
 // رسم لوحة القيادة (Dashboard)
 function renderDashboard() {
-  // حساب النشطين (يشمل تلقائياً المراقب والمدير لأنهم غير مستبعدين)
+  // حساب الإجمالي النشط (يشمل المدير والمراقب تلقائياً لأنهم ليسوا مستبعدين)
   let totalActive = data.filter(item => item && item.EmployeeID && isActiveEmployee(item)).length;
   let methanolCount = data.filter(item => isActiveEmployee(item) && (item.Depatment || "").includes("الميثانول")).length;
   let gasCount = data.filter(item => isActiveEmployee(item) && (item.Depatment || "").includes("معمل الغاز")).length;
@@ -368,6 +383,7 @@ function renderDashboard() {
 
   Object.keys(counts).sort().forEach(k => {
     const color = STATUS_COLORS[k] || '#777';
+    // عند النقر هنا يتم الذهاب لتبويب الحالة
     html += `
     <div class="stat" style="border:2px solid ${color}; background:rgba(0,0,0,0.25)" onclick="switchToStatus('${k}')">
       <div class="num" style="color:${color}">${counts[k]}</div>
@@ -399,7 +415,7 @@ function renderCard(item) {
   const toVal = getToFieldStatus(item.Since, item.To, code);
   if (toVal) rows.push(`<div class="row"><strong>إلى:</strong> ${toVal}</div>`);
 
-  // --- إضافة الحقول المطلوبة بشكل صريح بناء على الكود ---
+  // إضافة الحقول الخاصة (تظهر حتى لو فارغة للتأكيد)
   if (code === "B") {
       rows.push(`<div class="row"><strong>الإجراء:</strong> ${item.Action || ''}</div>`);
   }
@@ -409,9 +425,8 @@ function renderCard(item) {
   if (code === "منقول") {
       rows.push(`<div class="row"><strong>المنقول إليها:</strong> ${item.Transfreedepartment || ''}</div>`);
   }
-  // ---------------------------------------------------
 
-  // حقول إضافية
+  // حقول إضافية عامة
   if (code === "منتدب" && item.SecondeeDdepartment) rows.push(`<div class="row"><strong>الجهة المنتدب إليها:</strong> ${item.SecondeeDdepartment}</div>`);
 
   if (item.TravelDate) rows.push(`<div class="row"><strong>تاريخ السفر:</strong> ${formatSPDate(item.TravelDate)}</div>`);
@@ -422,26 +437,31 @@ function renderCard(item) {
   return `<div class="card">${rows.join('')}</div>`;
 }
 
+// دالة العرض الرئيسية
 function render() {
   const content = document.getElementById("content");
   
   if (currentTab === "القوى العاملة") {
-    // إذا كان هناك نص بحث، نعرض النتائج (بحث شامل) بدلاً من الداشبورد
+    // إذا كان هناك نص في مربع البحث، نعرض النتائج فوراً (بحث شامل)
     if (searchTerm.trim() !== "") {
-        const filtered = getFilteredData();
+        const filtered = getFilteredData(); // ستقوم بإرجاع البحث في كل الداتا
         if (filtered.length > 0) {
             content.innerHTML = `<div class="cards">${filtered.map(renderCard).join('')}</div>`;
         } else {
-            content.innerHTML = `<div style="text-align:center; padding:20px; color:#a0c0ff;">لا توجد نتائج مطابقة للبحث في السجلات.</div>`;
+            content.innerHTML = `<div style="text-align:center; padding:20px; color:#a0c0ff;">لا توجد نتائج مطابقة للبحث.</div>`;
         }
     } else {
-        // لا يوجد بحث، نعرض الداشبورد
+        // لا يوجد بحث -> عرض الداشبورد
         content.innerHTML = renderDashboard();
     }
   } else {
-    // تبويب فرعي
+    // أي تبويب آخر (بما في ذلك ALL_DETAILS عند النقر على إجمالي القوى العاملة)
     const filtered = getFilteredData();
-    content.innerHTML = `<div class="cards">${filtered.map(renderCard).join('')}</div>`;
+    if (filtered.length > 0) {
+        content.innerHTML = `<div class="cards">${filtered.map(renderCard).join('')}</div>`;
+    } else {
+        content.innerHTML = `<div style="text-align:center; padding:20px; color:#a0c0ff;">لا توجد بيانات لعرضها.</div>`;
+    }
   }
 }
 
@@ -474,6 +494,7 @@ function getExportColumns() {
     return columns;
 }
 
+// تنظيف الأعمدة
 function cleanEmptyColumns(columns, items) {
     return columns.filter(col => {
         if (SPECIAL_FIELDS_MAP[currentTab] && col.key === SPECIAL_FIELDS_MAP[currentTab].key) {
@@ -488,7 +509,7 @@ function cleanEmptyColumns(columns, items) {
 }
 
 function exportCurrentCSV() {
-  // السماح بالتصدير إذا كنا في الرئيسية ولكن يوجد بحث نشط
+  // منع التصدير من الشاشة الرئيسية إذا لم يكن هناك بحث
   if (currentTab === "القوى العاملة" && !searchTerm.trim()) {
       return alert("الرجاء اختيار حالة أو قسم للتصدير، أو قم بالبحث لتصدير النتائج.");
   }
@@ -514,7 +535,7 @@ function exportCurrentCSV() {
   const blob = new Blob([new Uint8Array([0xEF,0xBB,0xBF]), csv], {type: "text/csv;charset=utf-8;"});
   const link = document.createElement("a");
   link.href = URL.createObjectURL(blob);
-  link.download = `بيانات_${currentTab === "القوى العاملة" ? "بحث_شامل" : currentTab}.csv`;
+  link.download = `بيانات_${currentTab === "ALL_DETAILS" ? "القوى_العاملة_النشطة" : currentTab}.csv`;
   link.click();
 }
 
@@ -582,7 +603,7 @@ async function exportCurrentPDF() {
       margin: { top: 15 }
     });
 
-    doc.save(`تقرير_${currentTab === "القوى العاملة" ? "بحث_شامل" : currentTab}.pdf`);
+    doc.save(`تقرير_${currentTab === "ALL_DETAILS" ? "القوى_العاملة_النشطة" : currentTab}.pdf`);
   } catch (err) {
     alert("حدث خطأ أثناء إنشاء PDF");
     console.error(err);
