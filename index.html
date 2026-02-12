@@ -210,7 +210,6 @@ const rawData = [{"EmployeeID":"12220","Name":"مروان محمد حسن","Depa
 const data = rawData.body || rawData || [];
 
 // ثوابت الحالة
-// سيتم استبعاد هؤلاء من الإجمالي النشط
 const EXCLUDED_STATUSES = ["مستقيل", "متقاعد", "منقول", "مفصول"];
 const HIDE_TO_STATUSES = ["منقول", "مستقيل", "مفصول"];
 const DEPARTMENTS_LIST = ["معمل الغاز", "الميثانول", "المصفاة"];
@@ -233,14 +232,14 @@ const STATUS_COLORS = {
   "مراقب": "#3F51B5"    // لون نيلي مميز
 };
 
-// خريطة الحقول الخاصة لربط الكود بالحقل المطلوب واسمه العربي
+// خريطة الحقول الخاصة
 const SPECIAL_FIELDS_MAP = {
     "B": { key: "Action", label: "الإجراء" },
     "P": { key: "Absent_Reason", label: "سبب الغياب" },
     "منقول": { key: "Transfreedepartment", label: "المنقول إليها" }
 };
 
-let currentTab = "القوى العاملة"; // التبويب الافتراضي (الداشبورد)
+let currentTab = "القوى العاملة";
 let searchTerm = "";
 
 // دالة تنسيق التاريخ
@@ -282,61 +281,44 @@ function initTabs() {
 // التبديل بين التبويبات
 function switchTab(value, elem) {
   currentTab = value;
-  
-  // إزالة التنشيط من جميع التبويبات
   document.querySelectorAll(".tab").forEach(el => el.classList.remove("active"));
-  
-  // إذا تم الضغط على زر فعلي في الشريط
-  if (elem) {
-    elem.classList.add("active");
-  } else {
-    // حالة النقر على عنصر من الداشبورد (مثل زر إجمالي القوى العاملة)
-    // يمكننا تفعيل "القوى العاملة" شكلياً أو تركها بدون تفعيل للدلالة على عرض مخصص
-  }
-  
+  if (elem) elem.classList.add("active");
   render();
 }
 
-// التحقق من أن الموظف نشط (لا ينتمي للمستبعدين)
+// التحقق من أن الموظف نشط
 function isActiveEmployee(item) {
   const code = (item.Code || "").trim();
   return code && !EXCLUDED_STATUSES.includes(code);
 }
 
-// دالة الفلترة الرئيسية (القلب النابض للكود)
+// دالة الفلترة الرئيسية
 function getFilteredData() {
   let filtered = data.filter(item => item && item.EmployeeID && item.Name);
 
-  // 1. حالة النقر على بطاقة "إجمالي القوى العاملة" في الداشبورد
   if (currentTab === "ALL_DETAILS") {
       filtered = filtered.filter(item => isActiveEmployee(item));
   }
-  // 2. حالة التواجد في تبويب "القوى العاملة" (الصفحة الرئيسية)
   else if (currentTab === "القوى العاملة") {
-      // إذا كان هناك بحث، نريد البحث في *كل شيء*، لذا لا نفلتر هنا
-      // إذا لم يكن هناك بحث، هذه الدالة تستخدم للتصدير، لذا نصدر النشطين فقط
+      // بحث شامل إذا وجد نص، وإلا (للتصدير) نشط فقط
       if (!searchTerm.trim()) {
          filtered = filtered.filter(item => isActiveEmployee(item));
       }
-      // ملاحظة: عند العرض (render)، إذا لم يكن هناك بحث، نعرض الداشبورد وليس القائمة
   }
-  // 3. حالة تبويب الأقسام (معمل الغاز، الميثانول، إلخ)
   else if (DEPARTMENTS_LIST.includes(currentTab)) {
       filtered = filtered.filter(x => (x.Depatment || "").includes(currentTab) && isActiveEmployee(x));
   }
-  // 4. حالة تبويب "متواجد في العمل" (يشمل المدير والمراقب)
   else if (currentTab === "متواجد في العمل") {
       filtered = filtered.filter(x => {
           const c = (x.Code || "").trim();
           return c === "متواجد في العمل" || c === "مدير" || c === "مراقب";
       });
   }
-  // 5. باقي التبويبات (الحالات المحددة مثل B, P, منقول...)
   else {
       filtered = filtered.filter(x => (x.Code || "").trim() === currentTab);
   }
 
-  // 6. تطبيق البحث (على النتائج المصفاة أعلاه)
+  // فلترة البحث
   if (searchTerm.trim()) {
     const term = searchTerm.trim().toLowerCase();
     filtered = filtered.filter(x => 
@@ -348,9 +330,8 @@ function getFilteredData() {
   return filtered;
 }
 
-// رسم لوحة القيادة (Dashboard)
+// رسم لوحة القيادة (Dashboard) - مع تعديل حساب المجموع
 function renderDashboard() {
-  // حساب الإجمالي النشط (يشمل المدير والمراقب تلقائياً لأنهم ليسوا مستبعدين)
   let totalActive = data.filter(item => item && item.EmployeeID && isActiveEmployee(item)).length;
   let methanolCount = data.filter(item => isActiveEmployee(item) && (item.Depatment || "").includes("الميثانول")).length;
   let gasCount = data.filter(item => isActiveEmployee(item) && (item.Depatment || "").includes("معمل الغاز")).length;
@@ -359,7 +340,15 @@ function renderDashboard() {
   let counts = {};
   data.forEach(x => {
     let code = (x.Code || "").trim();
-    if (code) counts[code] = (counts[code] || 0) + 1;
+    if (!code) return;
+    
+    // حساب العدد الفعلي لكل كود لإنشاء البطاقات
+    counts[code] = (counts[code] || 0) + 1;
+
+    // *** التعديل المطلوب: إضافة مدير ومراقب إلى مجموع "متواجد في العمل" ***
+    if (code === "مدير" || code === "مراقب") {
+        counts["متواجد في العمل"] = (counts["متواجد في العمل"] || 0) + 1;
+    }
   });
 
   let html = `<div class="dashboard">`;
@@ -383,7 +372,6 @@ function renderDashboard() {
 
   Object.keys(counts).sort().forEach(k => {
     const color = STATUS_COLORS[k] || '#777';
-    // عند النقر هنا يتم الذهاب لتبويب الحالة
     html += `
     <div class="stat" style="border:2px solid ${color}; background:rgba(0,0,0,0.25)" onclick="switchToStatus('${k}')">
       <div class="num" style="color:${color}">${counts[k]}</div>
@@ -415,18 +403,10 @@ function renderCard(item) {
   const toVal = getToFieldStatus(item.Since, item.To, code);
   if (toVal) rows.push(`<div class="row"><strong>إلى:</strong> ${toVal}</div>`);
 
-  // إضافة الحقول الخاصة (تظهر حتى لو فارغة للتأكيد)
-  if (code === "B") {
-      rows.push(`<div class="row"><strong>الإجراء:</strong> ${item.Action || ''}</div>`);
-  }
-  if (code === "P") {
-      rows.push(`<div class="row"><strong>سبب الغياب:</strong> ${item.Absent_Reason || ''}</div>`);
-  }
-  if (code === "منقول") {
-      rows.push(`<div class="row"><strong>المنقول إليها:</strong> ${item.Transfreedepartment || ''}</div>`);
-  }
-
-  // حقول إضافية عامة
+  if (code === "B") rows.push(`<div class="row"><strong>الإجراء:</strong> ${item.Action || ''}</div>`);
+  if (code === "P") rows.push(`<div class="row"><strong>سبب الغياب:</strong> ${item.Absent_Reason || ''}</div>`);
+  if (code === "منقول") rows.push(`<div class="row"><strong>المنقول إليها:</strong> ${item.Transfreedepartment || ''}</div>`);
+  
   if (code === "منتدب" && item.SecondeeDdepartment) rows.push(`<div class="row"><strong>الجهة المنتدب إليها:</strong> ${item.SecondeeDdepartment}</div>`);
 
   if (item.TravelDate) rows.push(`<div class="row"><strong>تاريخ السفر:</strong> ${formatSPDate(item.TravelDate)}</div>`);
@@ -437,25 +417,21 @@ function renderCard(item) {
   return `<div class="card">${rows.join('')}</div>`;
 }
 
-// دالة العرض الرئيسية
 function render() {
   const content = document.getElementById("content");
   
   if (currentTab === "القوى العاملة") {
-    // إذا كان هناك نص في مربع البحث، نعرض النتائج فوراً (بحث شامل)
     if (searchTerm.trim() !== "") {
-        const filtered = getFilteredData(); // ستقوم بإرجاع البحث في كل الداتا
+        const filtered = getFilteredData();
         if (filtered.length > 0) {
             content.innerHTML = `<div class="cards">${filtered.map(renderCard).join('')}</div>`;
         } else {
             content.innerHTML = `<div style="text-align:center; padding:20px; color:#a0c0ff;">لا توجد نتائج مطابقة للبحث.</div>`;
         }
     } else {
-        // لا يوجد بحث -> عرض الداشبورد
         content.innerHTML = renderDashboard();
     }
   } else {
-    // أي تبويب آخر (بما في ذلك ALL_DETAILS عند النقر على إجمالي القوى العاملة)
     const filtered = getFilteredData();
     if (filtered.length > 0) {
         content.innerHTML = `<div class="cards">${filtered.map(renderCard).join('')}</div>`;
@@ -465,7 +441,7 @@ function render() {
   }
 }
 
-// تحديد الأعمدة للتصدير
+// التصدير
 function getExportColumns() {
     let columns = [
         { key: "EmployeeID", header: "رقم التوظيف" },
@@ -494,12 +470,9 @@ function getExportColumns() {
     return columns;
 }
 
-// تنظيف الأعمدة
 function cleanEmptyColumns(columns, items) {
     return columns.filter(col => {
-        if (SPECIAL_FIELDS_MAP[currentTab] && col.key === SPECIAL_FIELDS_MAP[currentTab].key) {
-            return true;
-        }
+        if (SPECIAL_FIELDS_MAP[currentTab] && col.key === SPECIAL_FIELDS_MAP[currentTab].key) return true;
         return items.some(item => {
             let val = item[col.key];
             if (col.key === "To") val = getToFieldStatus(item.Since, item.To, item.Code);
@@ -509,10 +482,7 @@ function cleanEmptyColumns(columns, items) {
 }
 
 function exportCurrentCSV() {
-  // منع التصدير من الشاشة الرئيسية إذا لم يكن هناك بحث
-  if (currentTab === "القوى العاملة" && !searchTerm.trim()) {
-      return alert("الرجاء اختيار حالة أو قسم للتصدير، أو قم بالبحث لتصدير النتائج.");
-  }
+  if (currentTab === "القوى العاملة" && !searchTerm.trim()) return alert("الرجاء اختيار حالة أو قسم للتصدير، أو قم بالبحث لتصدير النتائج.");
   
   const items = getFilteredData();
   if (!items.length) return alert("لا توجد بيانات");
@@ -561,9 +531,7 @@ if (!window.Buffer) {
 }
 
 async function exportCurrentPDF() {
-  if (currentTab === "القوى العاملة" && !searchTerm.trim()) {
-      return alert("الرجاء اختيار حالة أو قسم للتصدير، أو قم بالبحث لتصدير النتائج.");
-  }
+  if (currentTab === "القوى العاملة" && !searchTerm.trim()) return alert("الرجاء اختيار حالة أو قسم للتصدير، أو قم بالبحث لتصدير النتائج.");
   
   const items = getFilteredData();
   if (!items.length) return alert("لا توجد بيانات");
